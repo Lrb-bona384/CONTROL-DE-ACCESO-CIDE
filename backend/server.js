@@ -1,18 +1,28 @@
-const express = require('express');
+const express = require("express");
 const app = express();
-
+const pool = require("./config/database");
 const PORT = 3000;
 
-// Importar rutas
-const estudiantesRoutes = require('./routes/estudiantes.routes');
+app.use(express.json());const estudiantesRoutes = require("./routes/estudiantes.routes");
+app.use("/estudiantes", estudiantesRoutes);
 
-app.use(express.json());
+// Ruta base
+app.get("/", (req, res) => {
+  res.send("Servidor funcionando correctamente 🚀");
+});
 
-// Usar rutas
-app.use('/estudiantes', estudiantesRoutes);
-
-app.get('/', (req, res) => {
-  res.send('Servidor funcionando correctamente 🚀');
+// Health check con DB
+app.get("/health", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW() as now");
+    res.json({
+      status: "OK",
+      database_time: result.rows[0].now,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "DB ERROR" });
+  }
 });
 
 app.listen(PORT, () => {

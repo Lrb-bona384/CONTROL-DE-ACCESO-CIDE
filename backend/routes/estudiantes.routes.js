@@ -1,10 +1,7 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const { primerIngreso } = require("../controllers/estudiantes.controller");
 
-router.get('/', (req, res) => {
-  res.json({
-    mensaje: "Ruta de estudiantes funcionando"
-  });
-});
+router.post("/primer-ingreso", primerIngreso);
 
 module.exports = router;
