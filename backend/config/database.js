@@ -1,15 +1,22 @@
+require("dotenv").config({ quiet: true });
 const { Pool } = require("pg");
 
+const dbPassword = process.env.DB_PASSWORD ?? process.env.PGPASSWORD;
+
+if (typeof dbPassword !== "string" || dbPassword.length === 0) {
+  throw new Error("DB_PASSWORD (o PGPASSWORD) es obligatorio para conectar con PostgreSQL.");
+}
+
 const pool = new Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "control_acceso_cide",
-  password: "Mas2022",
-  port: 5432,
+  user: process.env.DB_USER || "postgres",
+  host: process.env.DB_HOST || "localhost",
+  database: process.env.DB_NAME || "control_acceso_cide",
+  password: dbPassword,
+  port: Number(process.env.DB_PORT || 5432),
 });
 
-pool.connect()
-  .then(() => console.log("✅ Conectado a PostgreSQL"))
-  .catch(err => console.error("❌ Error conexión DB:", err));
+pool.on("error", (err) => {
+  console.error("Error inesperado en pool PostgreSQL:", err);
+});
 
 module.exports = pool;

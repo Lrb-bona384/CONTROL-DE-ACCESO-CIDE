@@ -4,14 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "test": "node tests/roles.middleware.test.js && node tests/movimientos.controller.test.js && node tests/estudiantes.controller.test.js",
+    "test:integration": "node tests/movimientos.dentro-campus.integration.test.js",
+    "test:all": "npm test && npm run test:integration"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.19.0"
   }
 }
