@@ -3,6 +3,7 @@ const app = express();
 
 const pool = require("./config/database");
 
+const authRoutes = require("./routes/auth.routes");
 const estudiantesRoutes = require("./routes/estudiantes.routes");
 const movimientosRoutes = require("./routes/movimientos.routes");
 
@@ -11,6 +12,7 @@ const PORT = 3000;
 app.use(express.json());
 
 // Rutas
+app.use("/auth", authRoutes);
 app.use("/estudiantes", estudiantesRoutes);
 app.use("/movimientos", movimientosRoutes);
 

@@ -5,6 +5,8 @@ Proyecto academico para registrar el ingreso y salida de estudiantes mediante le
 - Node.js
 - Express
 - PostgreSQL
+- bcrypt
+- jsonwebtoken
 - Git / GitHub
 
 ## Arquitectura del proyecto
@@ -21,6 +23,12 @@ backend
 |  `- schema.sql
 `- server.js
 
+## Requisito para aportes de codigo
+Todo aporte al backend debe mantener y usar estas dependencias de autenticacion:
+- `bcrypt`
+- `jsonwebtoken`
+
+Si agregas o modificas funcionalidad de auth, valida que queden declaradas en `backend/package.json` y actualizadas en `backend/package-lock.json`.
 ## Instalacion
 ### 1. Clonar repositorio
 `git clone https://github.com/IngAutomata/CONTROL-DE-ACCESO-CIDE.git`
@@ -44,6 +52,36 @@ backend
 ### Health check
 `http://localhost:3000/health`
 
+## Autenticacion
+### Login
+`POST /auth/login`
+
+Body JSON:
+```json
+{
+  "username": "admin",
+  "password": "Admin123*"
+}
+```
+
+Respuesta exitosa (200):
+```json
+{
+  "token": "<jwt>",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "role": "ADMIN"
+  }
+}
+```
+
+Credenciales invalidas (401):
+```json
+{
+  "error": "Credenciales inválidas"
+}
+```
 ## Registro de estudiante
 ### Endpoint
 `POST /estudiantes/primer-ingreso`
@@ -119,3 +157,4 @@ UPDATE estudiantes SET qr_uid = documento WHERE qr_uid IS NULL;
 ALTER TABLE estudiantes ALTER COLUMN qr_uid SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS estudiantes_qr_uid_key ON estudiantes(qr_uid);
 ```
+

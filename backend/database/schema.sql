@@ -1,3 +1,12 @@
+-- Usuarios (admin/staff)
+CREATE TABLE IF NOT EXISTS usuarios (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(50) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL DEFAULT 'staff',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Estudiantes
 CREATE TABLE IF NOT EXISTS estudiantes (
   id SERIAL PRIMARY KEY,
