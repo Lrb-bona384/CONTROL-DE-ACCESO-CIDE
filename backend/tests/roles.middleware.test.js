@@ -30,8 +30,8 @@ async function runTest(name, fn) {
 }
 
 (async () => {
-  await runTest("requireRole retorna 401 cuando falta x-role", async () => {
-    const req = { headers: {} };
+  await runTest("requireRole retorna 401 cuando no hay req.user", async () => {
+    const req = {};
     const res = createRes();
     let nextCalled = false;
 
@@ -41,11 +41,11 @@ async function runTest(name, fn) {
 
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 401);
-    assert.equal(res.body.error, "Rol no informado. Usa header x-role.");
+    assert.equal(res.body.error, "Token requerido");
   });
 
   await runTest("requireRole retorna 403 cuando rol es invalido", async () => {
-    const req = { headers: { "x-role": "HACKER" } };
+    const req = { user: { role: "HACKER" } };
     const res = createRes();
 
     requireRole(ROLES.GUARDA)(req, res, () => {});
@@ -55,7 +55,7 @@ async function runTest(name, fn) {
   });
 
   await runTest("requireRole retorna 403 cuando el rol no tiene permiso", async () => {
-    const req = { headers: { "x-role": "CONSULTA" } };
+    const req = { user: { role: "CONSULTA" } };
     const res = createRes();
 
     requireRole(ROLES.GUARDA)(req, res, () => {});
@@ -65,7 +65,7 @@ async function runTest(name, fn) {
   });
 
   await runTest("requireRole permite cuando el rol esta autorizado", async () => {
-    const req = { headers: { "x-role": "guarda" } };
+    const req = { user: { role: "guarda" } };
     const res = createRes();
     let nextCalled = false;
 

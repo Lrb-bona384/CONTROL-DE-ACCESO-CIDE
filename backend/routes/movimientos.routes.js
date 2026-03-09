@@ -7,10 +7,13 @@ const {
   listarMovimientosPorEstudiante,
   listarDentroCampus,
 } = require("../controllers/movimientos.controller");
+const authMiddleware = require("../middlewares/auth.middleware");
 const { requireRole } = require("../middleware/requireRole");
 const { ROLES } = require("../constants/roles");
 
 const ROLES_LECTURA = [ROLES.ADMIN, ROLES.GUARDA, ROLES.CONSULTA];
+
+router.use(authMiddleware);
 
 router.post("/registrar", requireRole(ROLES.GUARDA), registrarMovimiento);
 router.get("/", requireRole(ROLES_LECTURA), listarMovimientos);

@@ -7,13 +7,19 @@ function normalizeRole(value) {
 }
 
 function requireRole(allowedRolesInput) {
-  const allowedRoles = Array.isArray(allowedRolesInput) ? allowedRolesInput : [allowedRolesInput];
+  const allowedRoles = Array.isArray(allowedRolesInput)
+    ? allowedRolesInput.map(normalizeRole).filter(Boolean)
+    : [normalizeRole(allowedRolesInput)].filter(Boolean);
 
   return (req, res, next) => {
-    const role = normalizeRole(req.headers["x-role"]);
+    if (!req.user) {
+      return res.status(401).json({ error: "Token requerido" });
+    }
+
+    const role = normalizeRole(req.user.role);
 
     if (!role) {
-      return res.status(401).json({ error: "Rol no informado. Usa header x-role." });
+      return res.status(403).json({ error: "Rol no informado en token" });
     }
 
     if (!Object.values(ROLES).includes(role)) {

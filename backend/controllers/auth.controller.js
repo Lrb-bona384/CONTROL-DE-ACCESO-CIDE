@@ -4,12 +4,8 @@ const pool = require("../config/database");
 const { ok, badRequest, unauthorized, serverError } = require("../utils/response");
 
 function resolveJwtSecret() {
-  if (process.env.JWT_SECRET) {
+  if (process.env.JWT_SECRET && process.env.JWT_SECRET.trim().length > 0) {
     return process.env.JWT_SECRET;
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    return "dev_secret";
   }
 
   return null;

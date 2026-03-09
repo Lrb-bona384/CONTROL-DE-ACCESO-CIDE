@@ -2,15 +2,22 @@ const jwt = require("jsonwebtoken");
 const { unauthorized, serverError } = require("../utils/response");
 
 function resolveJwtSecret() {
-  if (process.env.JWT_SECRET) {
+  if (process.env.JWT_SECRET && process.env.JWT_SECRET.trim().length > 0) {
     return process.env.JWT_SECRET;
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    return "dev_secret";
-  }
-
   return null;
+}
+
+function normalizeRole(roleValue) {
+  if (typeof roleValue !== "string") return null;
+  const role = roleValue.trim().toUpperCase();
+
+  if (role === "ADMIN") return "ADMIN";
+  if (role === "GUARDA" || role === "STAFF") return "GUARDA";
+  if (role === "CONSULTA") return "CONSULTA";
+
+  return role;
 }
 
 function authMiddleware(req, res, next) {
@@ -33,11 +40,11 @@ function authMiddleware(req, res, next) {
     req.user = {
       id: decoded.id,
       username: decoded.username,
-      role: decoded.role,
+      role: normalizeRole(decoded.role),
     };
 
     return next();
-  } catch (error) {
+  } catch (_error) {
     return unauthorized(res, "Token inválido o expirado");
   }
 }
