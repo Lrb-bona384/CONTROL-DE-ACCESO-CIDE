@@ -61,7 +61,7 @@ async function runTest(name, fn) {
     requireRole(ROLES.GUARDA)(req, res, () => {});
 
     assert.equal(res.statusCode, 403);
-    assert.equal(res.body.error, "No autorizado para este recurso");
+    assert.equal(res.body.error, "No tienes permisos para este recurso");
   });
 
   await runTest("requireRole permite cuando el rol esta autorizado", async () => {
@@ -69,7 +69,7 @@ async function runTest(name, fn) {
     const res = createRes();
     let nextCalled = false;
 
-    requireRole([ROLES.GUARDA, ROLES.ADMIN])(req, res, () => {
+    requireRole(ROLES.GUARDA, ROLES.ADMIN)(req, res, () => {
       nextCalled = true;
     });
 

@@ -1,6 +1,8 @@
 const express = require("express");
 const app = express();
 
+require('dotenv').config();
+
 const pool = require("./config/database");
 const { errorHandler } = require("./middleware/errorHandler");
 

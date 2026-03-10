@@ -56,8 +56,38 @@ Health:
 
 ## Autenticacion y autorizacion
 1. Login: `POST /auth/login`
-2. Enviar JWT en header:
+Body JSON:
+```json
+{
+  "username": "admin",
+  "password": "Admin123*"
+}
+```
+
+Respuesta exitosa:
+```json
+{
+  "token": "<jwt>",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "role": "ADMIN"
+  }
+}
+```
+
+2. Perfil autenticado: `GET /auth/me`
+Header requerido:
 - `Authorization: Bearer <token>`
+
+Respuesta exitosa:
+```json
+{
+  "id": 1,
+  "username": "admin",
+  "role": "ADMIN"
+}
+```
 
 Roles soportados:
 - `ADMIN`

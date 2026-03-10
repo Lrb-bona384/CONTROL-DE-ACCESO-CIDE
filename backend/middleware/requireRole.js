@@ -2,14 +2,18 @@ const { ROLES } = require("../constants/roles");
 
 function normalizeRole(value) {
   if (typeof value !== "string") return null;
+
   const role = value.trim().toUpperCase();
   return role || null;
 }
 
-function requireRole(allowedRolesInput) {
-  const allowedRoles = Array.isArray(allowedRolesInput)
-    ? allowedRolesInput.map(normalizeRole).filter(Boolean)
-    : [normalizeRole(allowedRolesInput)].filter(Boolean);
+function normalizeAllowedRoles(rolesInput) {
+  const flatRoles = rolesInput.flatMap((role) => (Array.isArray(role) ? role : [role]));
+  return flatRoles.map(normalizeRole).filter(Boolean);
+}
+
+function requireRole(...rolesInput) {
+  const allowedRoles = normalizeAllowedRoles(rolesInput);
 
   return (req, res, next) => {
     if (!req.user) {
@@ -28,7 +32,7 @@ function requireRole(allowedRolesInput) {
 
     if (!allowedRoles.includes(role)) {
       return res.status(403).json({
-        error: "No autorizado para este recurso",
+        error: "No tienes permisos para este recurso",
         role,
         allowed_roles: allowedRoles,
       });

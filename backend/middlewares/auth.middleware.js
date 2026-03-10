@@ -11,6 +11,7 @@ function resolveJwtSecret() {
 
 function normalizeRole(roleValue) {
   if (typeof roleValue !== "string") return null;
+
   const role = roleValue.trim().toUpperCase();
 
   if (role === "ADMIN") return "ADMIN";
@@ -23,11 +24,20 @@ function normalizeRole(roleValue) {
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return unauthorized(res, "Token requerido");
+  if (!authHeader) {
+    return unauthorized(res, "Token no proporcionado");
   }
 
-  const token = authHeader.slice(7);
+  if (!authHeader.startsWith("Bearer ")) {
+    return unauthorized(res, "Formato de Authorization invalido. Usa Bearer <token>");
+  }
+
+  const token = authHeader.slice(7).trim();
+
+  if (!token) {
+    return unauthorized(res, "Token no proporcionado");
+  }
+
   const jwtSecret = resolveJwtSecret();
 
   if (!jwtSecret) {
@@ -45,7 +55,7 @@ function authMiddleware(req, res, next) {
 
     return next();
   } catch (_error) {
-    return unauthorized(res, "Token inválido o expirado");
+    return unauthorized(res, "Token invalido");
   }
 }
 
