@@ -24,22 +24,19 @@ async function seed() {
     for (const user of users) {
       const passwordHash = await bcrypt.hash(user.password, 10);
 
-      const existente = await pool.query(
-        "SELECT id FROM usuarios WHERE username = $1",
-        [user.username]
-      );
-
-      if (existente.rows.length > 0) {
-        console.log(`Usuario '${user.username}' ya existe, omitiendo...`);
-        continue;
-      }
-
       await pool.query(
-        "INSERT INTO usuarios (username, password_hash, role) VALUES ($1, $2, $3)",
+        `
+        INSERT INTO usuarios (username, password_hash, role)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (username)
+        DO UPDATE SET
+          password_hash = EXCLUDED.password_hash,
+          role = EXCLUDED.role
+        `,
         [user.username, passwordHash, user.role]
       );
 
-      console.log(`Usuario '${user.username}' creado (rol: ${user.role})`);
+      console.log(`Usuario '${user.username}' listo (rol: ${user.role})`);
     }
 
     const result = await pool.query("SELECT id, username, role FROM usuarios ORDER BY id");
