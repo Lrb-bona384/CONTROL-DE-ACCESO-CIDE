@@ -147,7 +147,18 @@ Todas las rutas protegidas requieren `Authorization: Bearer <token>`.
 - Hay una interfaz web basica en la raiz (`/`) para login, creacion de usuarios, registro de estudiantes y verificacion de datos.
 
 ## Pruebas
+Comandos genericos:
 ```bash
+npm test
+npm run test:integration
+npm run test:all
+```
+
+Comandos recomendados en PowerShell:
+```powershell
+cd C:\Users\Usuario\Desktop\CONTROL-DE-ACCESO-CIDE\backend
+$env:DB_PASSWORD="tu_password_real"
+$env:JWT_SECRET="dev-secret"
 npm test
 npm run test:integration
 npm run test:all
@@ -159,7 +170,7 @@ npm run test:all
 - PowerShell: `./test-endpoints.ps1`
 - Bash: `bash test-endpoints.sh`
 
-## Demo minima para cualquier compañero
+## Demo minima para cualquier companero
 1. Copiar `.env.example` a `.env`
 2. Ejecutar `npm install`
 3. Crear la base y correr `database/schema.sql`
@@ -167,3 +178,12 @@ npm run test:all
 5. Ejecutar `npm start`
 6. Abrir `http://localhost:3000/`
 7. Ingresar con `admin / Admin123!`
+
+## Prueba visual desde la pantalla
+1. Iniciar sesion como `admin`
+2. Pulsar `Ver /auth/me` para confirmar token
+3. Crear un usuario desde `Usuarios del sistema`
+4. Registrar un estudiante desde `Registrar estudiante`
+5. Buscarlo por documento en `Verificar estudiante`
+6. Registrar movimiento por QR
+7. Verificarlo en `Ver dentro del campus`
