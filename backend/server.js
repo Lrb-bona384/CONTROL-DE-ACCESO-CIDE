@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const app = express();
 
 require('dotenv').config();
@@ -14,6 +15,7 @@ const adminRoutes = require("./routes/admin.routes");
 const PORT = Number(process.env.PORT || 3000);
 
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
 app.use((req, _res, next) => {
   console.log(`[request] ${req.method} ${req.originalUrl}`);
@@ -26,7 +28,7 @@ app.use("/movimientos", movimientosRoutes);
 app.use("/admin", adminRoutes);
 
 app.get("/", (_req, res) => {
-  res.send("Servidor funcionando correctamente");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 app.get("/health", async (_req, res) => {

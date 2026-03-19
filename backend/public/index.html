@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Acceso CIDE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero">
+      <p class="eyebrow">Control de Acceso CIDE</p>
+      <h1>Registro, login y verificacion en una sola consola visual.</h1>
+      <p class="hero-copy">
+        Interfaz operativa para autenticar usuarios del sistema, crear cuentas, registrar estudiantes,
+        consultar informacion y registrar movimientos en tiempo real.
+      </p>
+      <div class="status-bar">
+        <div>
+          <span class="status-label">Sesion</span>
+          <strong id="session-role">Sin iniciar</strong>
+        </div>
+        <div>
+          <span class="status-label">Token</span>
+          <strong id="session-token">No disponible</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card accent">
+        <h2>Login</h2>
+        <form id="login-form" class="form-stack">
+          <label>
+            Usuario
+            <input name="username" type="text" placeholder="admin" required>
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" placeholder="Admin123!" required>
+          </label>
+          <button type="submit">Iniciar sesion</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Perfil</h2>
+        <div class="button-row">
+          <button id="profile-btn" type="button">Ver /auth/me</button>
+          <button id="logout-btn" type="button" class="ghost">Cerrar sesion</button>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Usuarios del sistema</h2>
+        <form id="user-form" class="form-stack">
+          <label>
+            Username
+            <input name="username" type="text" placeholder="nuevo.usuario" required>
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" placeholder="Segura123!" required>
+          </label>
+          <label>
+            Rol
+            <select name="role">
+              <option value="ADMIN">ADMIN</option>
+              <option value="GUARDA">GUARDA</option>
+              <option value="CONSULTA">CONSULTA</option>
+            </select>
+          </label>
+          <button type="submit">Crear usuario</button>
+        </form>
+        <button id="users-btn" type="button" class="ghost full">Listar usuarios</button>
+      </article>
+
+      <article class="card wide">
+        <h2>Registrar estudiante</h2>
+        <form id="student-form" class="form-grid">
+          <label>
+            Documento
+            <input name="documento" type="text" required>
+          </label>
+          <label>
+            QR UID
+            <input name="qr_uid" type="text" required>
+          </label>
+          <label>
+            Nombre
+            <input name="nombre" type="text" required>
+          </label>
+          <label>
+            Carrera
+            <input name="carrera" type="text" required>
+          </label>
+          <label>
+            Placa
+            <input name="placa" type="text" required>
+          </label>
+          <label>
+            Color
+            <input name="color" type="text" required>
+          </label>
+          <label class="toggle">
+            <input name="vigencia" type="checkbox" checked>
+            <span>Vigente</span>
+          </label>
+          <button type="submit">Registrar primer ingreso</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Verificar estudiante</h2>
+        <form id="document-form" class="form-stack">
+          <label>
+            Documento
+            <input name="documento" type="text" placeholder="123456" required>
+          </label>
+          <button type="submit">Buscar por documento</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Registrar movimiento</h2>
+        <form id="movement-form" class="form-stack">
+          <label>
+            QR UID o URL
+            <input name="qr_input" type="text" placeholder="QR001 o URL completa" required>
+          </label>
+          <button type="submit">Registrar entrada/salida</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Monitoreo</h2>
+        <div class="button-row">
+          <button id="inside-btn" type="button">Ver dentro del campus</button>
+          <button id="students-btn" type="button" class="ghost">Listar estudiantes</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="card output-card">
+      <div class="output-head">
+        <h2>Respuesta</h2>
+        <button id="clear-output" type="button" class="ghost">Limpiar</button>
+      </div>
+      <pre id="output" class="output">Esperando acciones...</pre>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
