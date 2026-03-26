@@ -63,7 +63,7 @@ async function runTest(name, fn) {
         }),
       },
       estudiantesModelMock: {
-        upsertPrimerIngreso: async () => {
+        createPrimerIngreso: async () => {
           throw new Error("No debe llamarse en validacion");
         },
       },
@@ -96,7 +96,7 @@ async function runTest(name, fn) {
         }),
       },
       estudiantesModelMock: {
-        upsertPrimerIngreso: async () => {
+        createPrimerIngreso: async () => {
           throw new Error("No debe llamarse en validacion");
         },
       },
@@ -121,7 +121,7 @@ async function runTest(name, fn) {
     assert.deepEqual(res.body, { error: "placa debe tener formato ABC12D" });
   });
 
-  await runTest("primerIngreso hace upsert incluyendo qr_uid", async () => {
+  await runTest("primerIngreso crea registro incluyendo qr_uid", async () => {
     const queries = [];
     const client = {
       query: async (sql) => {
@@ -147,7 +147,7 @@ async function runTest(name, fn) {
         connect: async () => client,
       },
       estudiantesModelMock: {
-        upsertPrimerIngreso: async (_client, payload) => {
+        createPrimerIngreso: async (_client, payload) => {
           payloadSeen = payload;
           return fakeEstudiante;
         },
@@ -195,7 +195,7 @@ async function runTest(name, fn) {
         connect: async () => client,
       },
       estudiantesModelMock: {
-        upsertPrimerIngreso: async () => {
+        createPrimerIngreso: async () => {
           throw duplicateError;
         },
       },
@@ -224,6 +224,54 @@ async function runTest(name, fn) {
     assert.deepEqual(res.body, { error: "qr_uid ya esta registrado en otro estudiante" });
     assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
     assert.ok(queries.some((sql) => /ROLLBACK/.test(sql)), "Debe revertir transaccion");
+  });
+
+  await runTest("primerIngreso hace rollback y delega errores inesperados", async () => {
+    const queries = [];
+    const client = {
+      query: async (sql) => {
+        queries.push(sql);
+        return { rows: [] };
+      },
+      release() {},
+    };
+
+    const unexpectedError = new Error("fallo inesperado");
+
+    const { primerIngreso } = loadController({
+      poolMock: {
+        connect: async () => client,
+      },
+      estudiantesModelMock: {
+        createPrimerIngreso: async () => {
+          throw unexpectedError;
+        },
+      },
+    });
+
+    const req = {
+      body: {
+        documento: "123999",
+        qr_uid: "QR999",
+        nombre: "Luis",
+        carrera: "Ing",
+        vigencia: true,
+        placa: "ABC12D",
+        color: "Negro",
+      },
+    };
+    const res = createRes();
+    let nextArg = null;
+
+    await primerIngreso(req, res, (error) => {
+      nextArg = error;
+    });
+
+    assert.equal(nextArg, unexpectedError);
+    assert.equal(res.body, null);
+    assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
+    assert.ok(queries.some((sql) => /ROLLBACK/.test(sql)), "Debe revertir transaccion");
+    assert.equal(queries.some((sql) => /COMMIT/.test(sql)), false, "No debe confirmar transaccion");
   });
 
   if (process.exitCode && process.exitCode !== 0) {

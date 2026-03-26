@@ -1,14 +1,12 @@
-const pool = require("../config/database");
+﻿const pool = require("../config/database");
 
-async function upsertPrimerIngreso(client, payload) {
+async function createPrimerIngreso(client, payload) {
   const { documento, qr_uid, nombre, carrera, vigencia, placa, color } = payload;
 
   const estudianteResult = await client.query(
     `
     INSERT INTO estudiantes (documento, qr_uid, nombre, carrera, vigencia)
     VALUES ($1, $2, $3, $4, $5)
-    ON CONFLICT (documento)
-    DO UPDATE SET qr_uid = EXCLUDED.qr_uid, nombre = EXCLUDED.nombre, carrera = EXCLUDED.carrera, vigencia = EXCLUDED.vigencia
     RETURNING id, documento, qr_uid, nombre, carrera, vigencia
     `,
     [documento, qr_uid, nombre, carrera, vigencia]
@@ -96,7 +94,7 @@ async function findByQrUidForUpdate(client, qrUid) {
 }
 
 module.exports = {
-  upsertPrimerIngreso,
+  createPrimerIngreso,
   findByDocumento,
   findById,
   listAll,

@@ -10,9 +10,34 @@ function refreshSessionUI() {
   sessionToken.textContent = authToken ? "Disponible" : "No disponible";
 }
 
+function normalizeErrorPayload(error) {
+  if (!error) {
+    return { error: "Ocurrio un error desconocido" };
+  }
+
+  if (error.data && typeof error.data === "object") {
+    return error.status ? { status: error.status, ...error.data } : error.data;
+  }
+
+  if (error.data) {
+    return error.status ? { status: error.status, error: error.data } : { error: error.data };
+  }
+
+  if (error instanceof Error) {
+    return { error: error.message };
+  }
+
+  if (typeof error === "string") {
+    return { error };
+  }
+
+  return error;
+}
+
 function printResult(title, payload, isError = false) {
   output.classList.toggle("error", isError);
-  output.textContent = `${title}\n\n${JSON.stringify(payload, null, 2)}`;
+  const finalPayload = isError ? normalizeErrorPayload(payload) : payload;
+  output.textContent = `${title}\n\n${JSON.stringify(finalPayload, null, 2)}`;
 }
 
 function requireAuth(actionLabel) {
@@ -50,7 +75,15 @@ async function apiFetch(url, options = {}) {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  let data = {};
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      data = { error: text };
+    }
+  }
 
   if (!response.ok) {
     throw { status: response.status, data };
@@ -107,7 +140,8 @@ document.getElementById("user-form").addEventListener("submit", async (event) =>
   event.preventDefault();
   if (!requireAuth("crear usuarios")) return;
 
-  const formData = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formData = new FormData(form);
 
   try {
     const data = await apiFetch("/admin/usuarios", {
@@ -120,7 +154,7 @@ document.getElementById("user-form").addEventListener("submit", async (event) =>
     });
 
     printResult("Usuario creado", data);
-    event.currentTarget.reset();
+    form.reset();
   } catch (error) {
     printResult("Error creando usuario", error, true);
   }
@@ -141,7 +175,8 @@ document.getElementById("student-form").addEventListener("submit", async (event)
   event.preventDefault();
   if (!requireAuth("registrar estudiantes")) return;
 
-  const formData = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formData = new FormData(form);
   const placa = normalizePlate(formData.get("placa") || "");
 
   if (!/^[A-Z]{3}\d{2}[A-Z]$/.test(placa)) {
@@ -168,7 +203,7 @@ document.getElementById("student-form").addEventListener("submit", async (event)
     });
 
     printResult("Estudiante registrado", data);
-    event.currentTarget.reset();
+    form.reset();
   } catch (error) {
     printResult("Error registrando estudiante", error, true);
   }
