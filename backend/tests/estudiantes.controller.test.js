@@ -167,6 +167,60 @@ async function runTest(name, fn) {
     assert.ok(queries.some((sql) => /COMMIT/.test(sql)), "Debe confirmar transaccion");
   });
 
+  await runTest("primerIngreso audita como ACTUALIZAR cuando estudiante ya existe", async () => {
+    const client = {
+      query: async () => ({ rows: [] }),
+      release() {},
+    };
+
+    const fakeResult = {
+      estudiante: {
+        id: 1,
+        documento: "123456",
+        qr_uid: "QR001",
+        nombre: "Luis",
+        carrera: "Ing",
+        vigencia: true,
+      },
+      estudianteWasCreated: false,
+      motoWasCreated: false,
+    };
+
+    const auditEvents = [];
+
+    const { primerIngreso } = loadController({
+      poolMock: { connect: async () => client },
+      estudiantesModelMock: {
+        upsertPrimerIngreso: async () => fakeResult,
+      },
+      auditoriaModelMock: {
+        createAuditLog: async (_client, input) => {
+          auditEvents.push(input.tipoMovimiento);
+          return { rows: [{ id: auditEvents.length }] };
+        },
+      },
+    });
+
+    const req = {
+      user: { id: 7, username: "guarda1", role: "GUARDA" },
+      body: {
+        documento: "123456",
+        qr_uid: "QR001",
+        nombre: "Luis",
+        carrera: "Ing",
+        vigencia: true,
+        placa: "ABC123",
+        color: "Negro",
+      },
+    };
+
+    const res = createRes();
+    await primerIngreso(req, res, () => {});
+
+    assert.equal(res.statusCode, 201);
+    assert.deepEqual(auditEvents, ["ACTUALIZAR_ESTUDIANTE", "ACTUALIZAR_MOTOCICLETA"]);
+  });
+
   await runTest("primerIngreso envia el actor autenticado al modelo", async () => {
     const client = {
       query: async () => ({ rows: [] }),

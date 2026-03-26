@@ -7,10 +7,12 @@ const historyBody = document.getElementById("history-body");
 const historyEmpty = document.getElementById("history-empty");
 const historyButton = document.getElementById("history-btn");
 const historyRefreshButton = document.getElementById("history-refresh-btn");
+const historyDownloadButton = document.getElementById("history-download-btn");
 
 let authToken = localStorage.getItem("access_token") || "";
 let currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
 let historyAutoRefreshId = null;
+let currentAuditRows = [];
 
 function refreshSessionUI() {
   sessionRole.textContent = currentUser ? `${currentUser.username} / ${currentUser.role}` : "Sin iniciar";
@@ -53,6 +55,26 @@ function hideHistoryPanel() {
   stopHistoryAutoRefresh();
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function escapeCsv(value) {
+  const normalized = String(value ?? "").replaceAll('"', '""');
+  return `"${normalized}"`;
+}
+
+function updateHistoryActions() {
+  const isAdmin = currentUser?.role === "ADMIN";
+  historyDownloadButton.classList.toggle("hidden", !isAdmin);
+  historyDownloadButton.disabled = !currentAuditRows.length;
+}
+
 function isHistoryVisible() {
   return !historyPanel.classList.contains("hidden");
 }
@@ -83,7 +105,9 @@ function startHistoryAutoRefresh() {
 }
 
 function renderHistory(registros = []) {
+  currentAuditRows = registros;
   historyBody.innerHTML = "";
+  updateHistoryActions();
 
   if (!registros.length) {
     historyEmpty.classList.remove("hidden");
@@ -101,11 +125,12 @@ function renderHistory(registros = []) {
     tr.innerHTML = `
       <td>${fecha}</td>
       <td>${hora}</td>
-      <td><span class="history-type ${tipoClass}">${tipo || "-"}</span></td>
-      <td>${registro.tabla || "-"}</td>
-      <td>${registro.registro_id ?? "-"}</td>
-      <td>${registro.actor_username || "Sistema"}</td>
-      <td>${registro.descripcion || "-"}</td>
+      <td><span class="history-type ${tipoClass}">${escapeHtml(tipo || "-")}</span></td>
+      <td>${escapeHtml(registro.tabla || "-")}</td>
+      <td>${escapeHtml(registro.registro_id ?? "-")}</td>
+      <td>${escapeHtml(registro.actor_username || "Sistema")}</td>
+      <td>${escapeHtml(registro.actor_role || "-")}</td>
+      <td>${escapeHtml(registro.descripcion || "-")}</td>
     `;
 
     return tr;
@@ -170,6 +195,49 @@ async function apiFetch(url, options = {}) {
   }
 
   return data;
+}
+
+function downloadAuditCsv() {
+  if (!currentAuditRows.length) {
+    printResult("Sin datos para descargar", { error: "No hay registros de auditoria cargados." }, true);
+    return;
+  }
+
+  const header = ["fecha", "hora", "tipo_movimiento", "tabla", "registro_id", "usuario", "rol", "descripcion"];
+  const lines = currentAuditRows.map((registro) => {
+    const { fecha, hora } = formatDateTime(registro.created_at);
+    return [
+      fecha,
+      hora,
+      registro.tipo_movimiento || "",
+      registro.tabla || "",
+      registro.registro_id ?? "",
+      registro.actor_username || "Sistema",
+      registro.actor_role || "",
+      registro.descripcion || "",
+    ]
+      .map(escapeCsv)
+      .join(",");
+  });
+
+  const csv = [header.join(","), ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+
+  link.href = url;
+  link.download = `auditoria-${stamp}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+
+  printResult("Auditoria descargada", {
+    ok: true,
+    archivo: `auditoria-${stamp}.csv`,
+    registros: currentAuditRows.length,
+  });
 }
 
 async function loadHistory() {
@@ -371,5 +439,10 @@ historyRefreshButton.addEventListener("click", async () => {
   await loadHistory();
 });
 
+historyDownloadButton.addEventListener("click", () => {
+  downloadAuditCsv();
+});
+
 refreshSessionUI();
+updateHistoryActions();
 hideHistoryPanel();

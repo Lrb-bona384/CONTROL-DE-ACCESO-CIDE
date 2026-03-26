@@ -145,6 +145,11 @@ button.ghost {
   border: 1px solid var(--line);
 }
 
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 button.full {
   margin-top: 12px;
   width: 100%;
