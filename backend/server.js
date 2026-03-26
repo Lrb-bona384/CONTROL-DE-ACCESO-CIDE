@@ -5,6 +5,7 @@ const app = express();
 require('dotenv').config();
 
 const pool = require("./config/database");
+const { runMigrations } = require("./database/runMigrations");
 const { errorHandler } = require("./middleware/errorHandler");
 
 const authRoutes = require("./routes/auth.routes");
@@ -46,6 +47,13 @@ app.get("/health", async (_req, res) => {
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+runMigrations()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("[startup] error ejecutando migraciones", error.message);
+    process.exit(1);
+  });

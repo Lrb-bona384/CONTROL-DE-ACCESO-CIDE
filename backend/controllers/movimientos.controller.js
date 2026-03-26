@@ -26,6 +26,15 @@ function parseId(rawId) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+function handleControllerError(res, next, error, fallbackMessage) {
+  if (typeof next === "function") {
+    return next(error);
+  }
+
+  console.error(error);
+  return res.status(500).json({ error: fallbackMessage });
+}
+
 async function registrarMovimiento(req, res, next) {
   const body = req.body || {};
   const qrRaw = body.qr_uid || body.qr_url;
@@ -62,7 +71,7 @@ async function registrarMovimiento(req, res, next) {
       tipo = "SALIDA";
     }
 
-    const mov = await movimientosModel.createMovimiento(client, estudiante.id, tipo);
+    const mov = await movimientosModel.createMovimiento(client, estudiante.id, tipo, req.user?.id ?? null);
 
     await client.query("COMMIT");
 
@@ -78,7 +87,7 @@ async function registrarMovimiento(req, res, next) {
       // no-op
     }
 
-    return next(error);
+    return handleControllerError(res, next, error, "Error registrando movimiento");
   } finally {
     client.release();
   }
@@ -93,7 +102,7 @@ async function listarMovimientos(_req, res, next) {
       movimientos: result.rows,
     });
   } catch (error) {
-    return next(error);
+    return handleControllerError(res, next, error, "Error consultando movimientos");
   }
 }
 
@@ -111,7 +120,7 @@ async function listarMovimientosPorEstudiante(req, res, next) {
       movimientos: result.rows,
     });
   } catch (error) {
-    return next(error);
+    return handleControllerError(res, next, error, "Error consultando movimientos del estudiante");
   }
 }
 
@@ -125,7 +134,7 @@ async function listarDentroCampus(_req, res, next) {
       estudiantes: result.rows,
     });
   } catch (error) {
-    return next(error);
+    return handleControllerError(res, next, error, "Error consultando estudiantes dentro del campus");
   }
 }
 

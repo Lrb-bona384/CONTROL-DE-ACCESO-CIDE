@@ -54,6 +54,7 @@ async function crearUsuario(req, res, next) {
       username: username.trim(),
       passwordHash,
       role: normalizedRole,
+      actorUserId: req.user?.id ?? null,
     });
 
     return res.status(201).json({

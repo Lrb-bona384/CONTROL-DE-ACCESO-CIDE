@@ -106,13 +106,17 @@ async function runTest(name, fn) {
       },
     });
 
-    const req = { body: { username: "guardia1", password: "Segura123!", role: "staff" } };
+    const req = {
+      user: { id: 2, username: "admin", role: "ADMIN" },
+      body: { username: "guardia1", password: "Segura123!", role: "staff" },
+    };
     const res = createRes();
     await crearUsuario(req, res, () => {});
 
     assert.equal(res.statusCode, 201);
     assert.equal(payload.role, "GUARDA");
     assert.equal(payload.passwordHash, "hash-123");
+    assert.equal(payload.actorUserId, 2);
     assert.equal(res.body.usuario.role, "GUARDA");
   });
 

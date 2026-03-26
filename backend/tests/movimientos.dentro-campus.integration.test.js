@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const pool = require("../config/database");
+const { runMigrations } = require("../database/runMigrations");
 const { listarDentroCampus } = require("../controllers/movimientos.controller");
 
 function createRes() {
@@ -18,6 +19,8 @@ function createRes() {
 }
 
 async function run() {
+  await runMigrations();
+
   const suffix = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
   const base = `it_${suffix}`;
 

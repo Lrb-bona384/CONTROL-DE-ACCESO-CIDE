@@ -148,6 +148,7 @@ async function runTest(name, fn) {
     });
 
     const req = {
+      user: { id: 5, username: "guarda1", role: "GUARDA" },
       body: {
         qr_url: "https://cide.edu/qr/QR001?source=lector#abc",
       },
@@ -160,6 +161,43 @@ async function runTest(name, fn) {
     assert.equal(res.body.movimiento.tipo, "SALIDA");
     assert.ok(calls.some((c) => c.op === "findByQrUidForUpdate" && c.qrUid === "QR001"));
     assert.ok(calls.some((c) => c.op === "createMovimiento" && c.estudianteId === 10 && c.tipo === "SALIDA"));
+  });
+
+  await runTest("registrarMovimiento envia el actor autenticado al modelo", async () => {
+    let actorSeen = null;
+    const client = {
+      query: async () => ({ rows: [] }),
+      release() {},
+    };
+
+    const { registrarMovimiento } = loadController({
+      poolMock: {
+        connect: async () => client,
+      },
+      estudiantesModelMock: {
+        findByQrUidForUpdate: async () => ({
+          rows: [{ id: 10, documento: "123", nombre: "Luis", carrera: "Ing", vigencia: true }],
+        }),
+      },
+      movimientosModelMock: {
+        getLastByEstudianteId: async () => ({ rows: [] }),
+        createMovimiento: async (_client, estudianteId, tipo, actorUserId) => {
+          actorSeen = actorUserId;
+          return { rows: [{ id: 77, estudiante_id: estudianteId, tipo, fecha_hora: "2026-03-05T15:00:00.000Z" }] };
+        },
+      },
+    });
+
+    const req = {
+      user: { id: 12, username: "guardia2", role: "GUARDA" },
+      body: { qr_uid: "QR001" },
+    };
+    const res = createRes();
+
+    await registrarMovimiento(req, res, () => {});
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(actorSeen, 12);
   });
 
   await runTest("listarDentroCampus retorna 200 con count y estudiantes", async () => {

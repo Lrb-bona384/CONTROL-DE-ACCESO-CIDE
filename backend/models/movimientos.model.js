@@ -7,10 +7,14 @@ async function getLastByEstudianteId(client, estudianteId) {
   );
 }
 
-async function createMovimiento(client, estudianteId, tipo) {
+async function createMovimiento(client, estudianteId, tipo, actorUserId = null) {
   return client.query(
-    "INSERT INTO movimientos (estudiante_id, tipo) VALUES ($1, $2) RETURNING id, estudiante_id, tipo, fecha AS fecha_hora",
-    [estudianteId, tipo]
+    `
+    INSERT INTO movimientos (estudiante_id, tipo, created_by)
+    VALUES ($1, $2, $3)
+    RETURNING id, estudiante_id, tipo, fecha AS fecha_hora, created_by
+    `,
+    [estudianteId, tipo, actorUserId]
   );
 }
 
@@ -25,9 +29,12 @@ async function listAllMovimientos() {
       e.carrera,
       e.vigencia,
       m.tipo,
-      m.fecha AS fecha_hora
+      m.fecha AS fecha_hora,
+      m.created_by,
+      u.username AS registrado_por
     FROM movimientos m
     JOIN estudiantes e ON e.id = m.estudiante_id
+    LEFT JOIN usuarios u ON u.id = m.created_by
     ORDER BY m.fecha DESC, m.id DESC
     `
   );
@@ -44,9 +51,12 @@ async function listMovimientosByEstudianteId(estudianteId) {
       e.carrera,
       e.vigencia,
       m.tipo,
-      m.fecha AS fecha_hora
+      m.fecha AS fecha_hora,
+      m.created_by,
+      u.username AS registrado_por
     FROM movimientos m
     JOIN estudiantes e ON e.id = m.estudiante_id
+    LEFT JOIN usuarios u ON u.id = m.created_by
     WHERE m.estudiante_id = $1
     ORDER BY m.fecha DESC, m.id DESC
     `,
@@ -74,7 +84,9 @@ async function listDentroCampus() {
       moto.placa,
       moto.color,
       um.tipo AS ultimo_movimiento,
-      um.fecha AS fecha_ultimo_movimiento
+      um.fecha AS fecha_ultimo_movimiento,
+      e.created_by,
+      e.updated_by
     FROM ultimo_movimiento um
     JOIN estudiantes e ON e.id = um.estudiante_id
     LEFT JOIN motocicletas moto ON moto.estudiante_id = e.id

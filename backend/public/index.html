@@ -140,8 +140,35 @@
         <div class="button-row">
           <button id="inside-btn" type="button">Ver dentro del campus</button>
           <button id="students-btn" type="button" class="ghost">Listar estudiantes</button>
+          <button id="history-btn" type="button" class="ghost">Historicos</button>
         </div>
       </article>
+    </section>
+
+    <section id="history-panel" class="card history-card hidden">
+      <div class="output-head">
+        <div>
+          <p class="eyebrow">Bitacora operativa</p>
+          <h2>Historico de movimientos</h2>
+        </div>
+        <button id="history-close-btn" type="button" class="ghost">Cerrar vista</button>
+      </div>
+      <div id="history-empty" class="history-empty">Aun no hay movimientos para mostrar.</div>
+      <div class="history-table-wrap">
+        <table id="history-table" class="history-table hidden">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Documento</th>
+              <th>Estudiante</th>
+              <th>Tipo</th>
+              <th>Usuario</th>
+            </tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="card output-card">

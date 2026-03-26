@@ -32,7 +32,7 @@ async function primerIngreso(req, res, next) {
     console.log("[estudiantes] POST /primer-ingreso", { documento: req.body.documento });
     await client.query("BEGIN");
 
-    const estudiante = await estudiantesModel.upsertPrimerIngreso(client, req.body);
+    const estudiante = await estudiantesModel.upsertPrimerIngreso(client, req.body, req.user?.id ?? null);
 
     await client.query("COMMIT");
 

@@ -1,29 +1,39 @@
 const pool = require("../config/database");
 
-async function upsertPrimerIngreso(client, payload) {
+async function upsertPrimerIngreso(client, payload, actorUserId = null) {
   const { documento, qr_uid, nombre, carrera, vigencia, placa, color } = payload;
 
   const estudianteResult = await client.query(
     `
-    INSERT INTO estudiantes (documento, qr_uid, nombre, carrera, vigencia)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO estudiantes (documento, qr_uid, nombre, carrera, vigencia, created_by, updated_by)
+    VALUES ($1, $2, $3, $4, $5, $6, $6)
     ON CONFLICT (documento)
-    DO UPDATE SET qr_uid = EXCLUDED.qr_uid, nombre = EXCLUDED.nombre, carrera = EXCLUDED.carrera, vigencia = EXCLUDED.vigencia
-    RETURNING id, documento, qr_uid, nombre, carrera, vigencia
+    DO UPDATE SET
+      qr_uid = EXCLUDED.qr_uid,
+      nombre = EXCLUDED.nombre,
+      carrera = EXCLUDED.carrera,
+      vigencia = EXCLUDED.vigencia,
+      updated_at = NOW(),
+      updated_by = EXCLUDED.updated_by
+    RETURNING id, documento, qr_uid, nombre, carrera, vigencia, created_at, updated_at, created_by, updated_by
     `,
-    [documento, qr_uid, nombre, carrera, vigencia]
+    [documento, qr_uid, nombre, carrera, vigencia, actorUserId]
   );
 
   const estudiante = estudianteResult.rows[0];
 
   await client.query(
     `
-    INSERT INTO motocicletas (estudiante_id, placa, color)
-    VALUES ($1, $2, $3)
+    INSERT INTO motocicletas (estudiante_id, placa, color, created_by, updated_by)
+    VALUES ($1, $2, $3, $4, $4)
     ON CONFLICT (estudiante_id)
-    DO UPDATE SET placa = EXCLUDED.placa, color = EXCLUDED.color
+    DO UPDATE SET
+      placa = EXCLUDED.placa,
+      color = EXCLUDED.color,
+      updated_at = NOW(),
+      updated_by = EXCLUDED.updated_by
     `,
-    [estudiante.id, placa, color]
+    [estudiante.id, placa, color, actorUserId]
   );
 
   return estudiante;
@@ -39,8 +49,16 @@ async function findByDocumento(documento) {
       e.nombre,
       e.carrera,
       e.vigencia,
+      e.created_at,
+      e.updated_at,
+      e.created_by,
+      e.updated_by,
       m.placa,
-      m.color
+      m.color,
+      m.created_at AS moto_created_at,
+      m.updated_at AS moto_updated_at,
+      m.created_by AS moto_created_by,
+      m.updated_by AS moto_updated_by
     FROM estudiantes e
     LEFT JOIN motocicletas m ON m.estudiante_id = e.id
     WHERE e.documento = $1
@@ -59,8 +77,16 @@ async function findById(id) {
       e.nombre,
       e.carrera,
       e.vigencia,
+      e.created_at,
+      e.updated_at,
+      e.created_by,
+      e.updated_by,
       m.placa,
-      m.color
+      m.color,
+      m.created_at AS moto_created_at,
+      m.updated_at AS moto_updated_at,
+      m.created_by AS moto_created_by,
+      m.updated_by AS moto_updated_by
     FROM estudiantes e
     LEFT JOIN motocicletas m ON m.estudiante_id = e.id
     WHERE e.id = $1
@@ -79,8 +105,16 @@ async function listAll() {
       e.nombre,
       e.carrera,
       e.vigencia,
+      e.created_at,
+      e.updated_at,
+      e.created_by,
+      e.updated_by,
       m.placa,
-      m.color
+      m.color,
+      m.created_at AS moto_created_at,
+      m.updated_at AS moto_updated_at,
+      m.created_by AS moto_created_by,
+      m.updated_by AS moto_updated_by
     FROM estudiantes e
     LEFT JOIN motocicletas m ON m.estudiante_id = e.id
     ORDER BY e.id DESC

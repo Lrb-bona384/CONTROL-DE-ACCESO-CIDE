@@ -1,0 +1,39 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (6) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+Servidor corriendo en http://localhost:3000
+[request] GET /health
+[request] POST /auth/login
+[request] GET /.well-known/appspecific/com.chrome.devtools.json
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] GET /auth/me
+[request] POST /auth/login
+[request] GET /.well-known/appspecific/com.chrome.devtools.json
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /auth/login
+[request] POST /estudiantes/primer-ingreso
+[estudiantes] POST /primer-ingreso { documento: '1014241226' }
+[request] GET /estudiantes/documento/1014241226
+[estudiantes] GET /estudiantes/documento/:documento { documento: '1014241226' }
+[request] GET /.well-known/appspecific/com.chrome.devtools.json

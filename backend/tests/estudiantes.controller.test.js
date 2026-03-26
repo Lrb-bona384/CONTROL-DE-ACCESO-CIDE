@@ -121,6 +121,7 @@ async function runTest(name, fn) {
     });
 
     const req = {
+      user: { id: 99, username: "guarda1", role: "GUARDA" },
       body: {
         documento: "123456",
         qr_uid: "QR001",
@@ -140,6 +141,53 @@ async function runTest(name, fn) {
     assert.deepEqual(payloadSeen, req.body);
     assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
     assert.ok(queries.some((sql) => /COMMIT/.test(sql)), "Debe confirmar transaccion");
+  });
+
+  await runTest("primerIngreso envia el actor autenticado al modelo", async () => {
+    const client = {
+      query: async () => ({ rows: [] }),
+      release() {},
+    };
+
+    let actorSeen = null;
+
+    const { primerIngreso } = loadController({
+      poolMock: {
+        connect: async () => client,
+      },
+      estudiantesModelMock: {
+        upsertPrimerIngreso: async (_client, _payload, actorUserId) => {
+          actorSeen = actorUserId;
+          return {
+            id: 1,
+            documento: "123456",
+            qr_uid: "QR001",
+            nombre: "Luis",
+            carrera: "Ing",
+            vigencia: true,
+          };
+        },
+      },
+    });
+
+    const req = {
+      user: { id: 7, username: "guarda1", role: "GUARDA" },
+      body: {
+        documento: "123456",
+        qr_uid: "QR001",
+        nombre: "Luis",
+        carrera: "Ing",
+        vigencia: true,
+        placa: "ABC123",
+        color: "Negro",
+      },
+    };
+    const res = createRes();
+
+    await primerIngreso(req, res, () => {});
+
+    assert.equal(res.statusCode, 201);
+    assert.equal(actorSeen, 7);
   });
 
   if (process.exitCode && process.exitCode !== 0) {

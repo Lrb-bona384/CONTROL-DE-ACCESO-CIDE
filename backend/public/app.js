@@ -1,6 +1,11 @@
 const output = document.getElementById("output");
 const sessionRole = document.getElementById("session-role");
 const sessionToken = document.getElementById("session-token");
+const historyPanel = document.getElementById("history-panel");
+const historyTable = document.getElementById("history-table");
+const historyBody = document.getElementById("history-body");
+const historyEmpty = document.getElementById("history-empty");
+const historyButton = document.getElementById("history-btn");
 
 let authToken = localStorage.getItem("access_token") || "";
 let currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
@@ -8,11 +13,76 @@ let currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
 function refreshSessionUI() {
   sessionRole.textContent = currentUser ? `${currentUser.username} / ${currentUser.role}` : "Sin iniciar";
   sessionToken.textContent = authToken ? "Disponible" : "No disponible";
+  historyButton.classList.toggle("hidden", currentUser?.role !== "ADMIN");
 }
 
 function printResult(title, payload, isError = false) {
   output.classList.toggle("error", isError);
   output.textContent = `${title}\n\n${JSON.stringify(payload, null, 2)}`;
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return { fecha: "-", hora: "-" };
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return { fecha: value, hora: "-" };
+  }
+
+  return {
+    fecha: date.toLocaleDateString("es-CO", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }),
+    hora: date.toLocaleTimeString("es-CO", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
+  };
+}
+
+function hideHistoryPanel() {
+  historyPanel.classList.add("hidden");
+}
+
+function renderHistory(movimientos = []) {
+  historyBody.innerHTML = "";
+
+  if (!movimientos.length) {
+    historyEmpty.classList.remove("hidden");
+    historyTable.classList.add("hidden");
+    historyPanel.classList.remove("hidden");
+    return;
+  }
+
+  const rows = movimientos.map((movimiento) => {
+    const { fecha, hora } = formatDateTime(movimiento.fecha_hora);
+    const tipo = String(movimiento.tipo || "").toUpperCase();
+    const tipoClass = tipo === "ENTRADA" ? "entrada" : "salida";
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${fecha}</td>
+      <td>${hora}</td>
+      <td>${movimiento.documento || "-"}</td>
+      <td>${movimiento.nombre || "-"}</td>
+      <td><span class="history-type ${tipoClass}">${tipo || "-"}</span></td>
+      <td>${movimiento.registrado_por || "Sistema"}</td>
+    `;
+
+    return tr;
+  });
+
+  historyBody.append(...rows);
+  historyEmpty.classList.add("hidden");
+  historyTable.classList.remove("hidden");
+  historyPanel.classList.remove("hidden");
+  historyPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function requireAuth(actionLabel) {
@@ -31,6 +101,7 @@ function requireAuth(actionLabel) {
 }
 
 async function apiFetch(url, options = {}) {
+  const method = options.method || "GET";
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
@@ -46,7 +117,19 @@ async function apiFetch(url, options = {}) {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  let data;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      data = { message: text, parseError: parseError.message };
+    }
+  } else {
+    data = {};
+  }
+
+  console.log(`[api] ${method} ${url} -> ${response.status} ${response.statusText}`, data);
 
   if (!response.ok) {
     throw { status: response.status, data };
@@ -96,6 +179,7 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   localStorage.removeItem("access_token");
   localStorage.removeItem("auth_user");
   refreshSessionUI();
+  hideHistoryPanel();
   printResult("Sesion cerrada", { ok: true });
 });
 
@@ -204,6 +288,24 @@ document.getElementById("inside-btn").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("history-btn").addEventListener("click", async () => {
+  if (!requireAuth("consultar el historico de movimientos")) return;
+  if (currentUser?.role !== "ADMIN") {
+    hideHistoryPanel();
+    printResult("Acceso denegado", { error: "Solo ADMIN puede visualizar historicos." }, true);
+    return;
+  }
+
+  try {
+    const data = await apiFetch("/movimientos");
+    renderHistory(data.movimientos || []);
+    printResult("Historico de movimientos", data);
+  } catch (error) {
+    hideHistoryPanel();
+    printResult("Error consultando historicos", error, true);
+  }
+});
+
 document.getElementById("students-btn").addEventListener("click", async () => {
   if (!requireAuth("listar estudiantes")) return;
 
@@ -219,4 +321,9 @@ document.getElementById("clear-output").addEventListener("click", () => {
   printResult("Respuesta", { ok: true, message: "Salida limpia" });
 });
 
+document.getElementById("history-close-btn").addEventListener("click", () => {
+  hideHistoryPanel();
+});
+
 refreshSessionUI();
+hideHistoryPanel();
