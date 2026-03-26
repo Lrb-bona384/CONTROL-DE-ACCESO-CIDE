@@ -140,6 +140,25 @@ async function runTest(name, fn) {
     assert.equal(res.body.usuario.role, "GUARDA");
   });
 
+  await runTest("obtenerUsuarioPorUsername retorna usuario encontrado", async () => {
+    const { obtenerUsuarioPorUsername } = loadController({
+      usuariosModelMock: {
+        findByUsername: async () => ({ rows: [{ id: 3, username: "consulta", role: "CONSULTA" }] }),
+      },
+      bcryptMock: {},
+      estudiantesModelMock: {},
+      poolMock: {},
+    });
+
+    const req = { params: { username: "consulta" } };
+    const res = createRes();
+
+    await obtenerUsuarioPorUsername(req, res, () => {});
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.username, "consulta");
+  });
+
   await runTest("actualizarUsuario modifica role y password", async () => {
     let payload = null;
     const { actualizarUsuario } = loadController({
@@ -172,6 +191,40 @@ async function runTest(name, fn) {
     assert.equal(res.body.usuario.role, "CONSULTA");
   });
 
+  await runTest("actualizarUsuarioPorUsername usa username como llave de busqueda", async () => {
+    let updateId = null;
+    const { actualizarUsuarioPorUsername } = loadController({
+      usuariosModelMock: {
+        findByUsername: async (username) => {
+          if (username === "guardia1") return { rows: [{ id: 7, username: "guardia1", role: "GUARDA" }] };
+          return { rows: [] };
+        },
+        findById: async () => ({ rows: [{ id: 7, username: "guardia1", role: "GUARDA" }] }),
+        updateUsuario: async (id, input) => {
+          updateId = id;
+          return { rows: [{ id, username: input.username || "guardia1", role: input.role || "GUARDA" }] };
+        },
+      },
+      bcryptMock: {
+        hash: async () => "hash-new",
+      },
+      estudiantesModelMock: {},
+      poolMock: {},
+    });
+
+    const req = {
+      params: { username: "guardia1" },
+      body: { role: "consulta" },
+    };
+    const res = createRes();
+
+    await actualizarUsuarioPorUsername(req, res, () => {});
+
+    assert.equal(updateId, 7);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.usuario.role, "CONSULTA");
+  });
+
   await runTest("eliminarUsuario retorna 404 si no existe", async () => {
     const { eliminarUsuario } = loadController({
       usuariosModelMock: {
@@ -189,6 +242,52 @@ async function runTest(name, fn) {
 
     assert.equal(res.statusCode, 404);
     assert.deepEqual(res.body, { error: "Usuario no encontrado" });
+  });
+
+  await runTest("eliminarUsuarioPorUsername elimina cuando existe", async () => {
+    let deletedId = null;
+    const { eliminarUsuarioPorUsername } = loadController({
+      usuariosModelMock: {
+        findByUsername: async () => ({ rows: [{ id: 9, username: "consulta", role: "CONSULTA" }] }),
+        deleteUsuario: async (id) => {
+          deletedId = id;
+          return { rows: [{ id, username: "consulta", role: "CONSULTA" }] };
+        },
+      },
+      bcryptMock: {},
+      estudiantesModelMock: {},
+      poolMock: {},
+    });
+
+    const req = { params: { username: "consulta" } };
+    const res = createRes();
+
+    await eliminarUsuarioPorUsername(req, res, () => {});
+
+    assert.equal(deletedId, 9);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.usuario.username, "consulta");
+  });
+
+  await runTest("obtenerEstudiantePorPlaca retorna estudiante encontrado", async () => {
+    const { obtenerEstudiantePorPlaca } = loadController({
+      usuariosModelMock: {},
+      bcryptMock: {},
+      estudiantesModelMock: {
+        findByPlaca: async () => ({
+          rows: [{ estudiante_id: 5, documento: "123456", placa: "ABC12D", nombre: "Luis", vigencia: true }],
+        }),
+      },
+      poolMock: {},
+    });
+
+    const req = { params: { placa: "abc12d" } };
+    const res = createRes();
+
+    await obtenerEstudiantePorPlaca(req, res, () => {});
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.placa, "ABC12D");
   });
 
   await runTest("actualizarEstudiante retorna 409 si qr_uid ya existe", async () => {
@@ -240,6 +339,53 @@ async function runTest(name, fn) {
     assert.ok(queries.some((sql) => /ROLLBACK/.test(sql)), "Debe revertir transaccion");
   });
 
+  await runTest("actualizarEstudiantePorDocumento usa documento como llave de busqueda", async () => {
+    const queries = [];
+    const client = {
+      query: async (sql) => {
+        queries.push(sql);
+        return { rows: [] };
+      },
+      release() {},
+    };
+
+    const { actualizarEstudiantePorDocumento } = loadController({
+      usuariosModelMock: {},
+      bcryptMock: {},
+      estudiantesModelMock: {
+        findByDocumento: async () => ({
+          rows: [{ estudiante_id: 11, documento: "123456", qr_uid: "QR001", nombre: "Luis", carrera: "Ing", vigencia: true }],
+        }),
+        updateById: async (_client, id) => ({
+          rows: [{ id, documento: "123456", qr_uid: "QR001", nombre: "Luis", carrera: "Ing", vigencia: true }],
+        }),
+      },
+      poolMock: {
+        connect: async () => client,
+      },
+    });
+
+    const req = {
+      params: { documento: "123456" },
+      body: {
+        documento: "123456",
+        qr_uid: "QR001",
+        nombre: "Luis",
+        carrera: "Ing",
+        vigencia: true,
+        placa: "ABC12D",
+        color: "Negro",
+      },
+    };
+    const res = createRes();
+
+    await actualizarEstudiantePorDocumento(req, res, () => {});
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.estudiante.id, 11);
+    assert.ok(queries.some((sql) => /COMMIT/.test(sql)), "Debe confirmar transaccion");
+  });
+
   await runTest("eliminarEstudiante elimina cuando existe", async () => {
     const queries = [];
     const client = {
@@ -271,6 +417,42 @@ async function runTest(name, fn) {
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.message, "Estudiante eliminado");
     assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
+    assert.ok(queries.some((sql) => /COMMIT/.test(sql)), "Debe confirmar transaccion");
+  });
+
+  await runTest("eliminarEstudiantePorDocumento elimina cuando existe", async () => {
+    const queries = [];
+    const client = {
+      query: async (sql) => {
+        queries.push(sql);
+        return { rows: [] };
+      },
+      release() {},
+    };
+
+    const { eliminarEstudiantePorDocumento } = loadController({
+      usuariosModelMock: {},
+      bcryptMock: {},
+      estudiantesModelMock: {
+        findByDocumento: async () => ({
+          rows: [{ estudiante_id: 5, documento: "123456", qr_uid: "QR001", nombre: "Luis", carrera: "Ing", vigencia: true }],
+        }),
+        deleteById: async () => ({
+          rows: [{ id: 5, documento: "123456", qr_uid: "QR001", nombre: "Luis", carrera: "Ing", vigencia: true }],
+        }),
+      },
+      poolMock: {
+        connect: async () => client,
+      },
+    });
+
+    const req = { params: { documento: "123456" } };
+    const res = createRes();
+
+    await eliminarEstudiantePorDocumento(req, res, () => {});
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.estudiante.documento, "123456");
     assert.ok(queries.some((sql) => /COMMIT/.test(sql)), "Debe confirmar transaccion");
   });
 

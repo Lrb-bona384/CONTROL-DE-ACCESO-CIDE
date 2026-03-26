@@ -6,6 +6,8 @@ let authToken = localStorage.getItem("access_token") || "";
 let currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
 const userForm = document.getElementById("user-form");
 const studentForm = document.getElementById("student-form");
+let selectedUsername = "";
+let selectedStudentDocumento = "";
 
 function refreshSessionUI() {
   sessionRole.textContent = currentUser ? `${currentUser.username} / ${currentUser.role}` : "Sin iniciar";
@@ -61,11 +63,6 @@ function normalizePlate(value) {
   return value.trim().toUpperCase();
 }
 
-function parsePositiveInt(value) {
-  const number = Number(value);
-  return Number.isInteger(number) && number > 0 ? number : null;
-}
-
 function ensureAdmin(actionLabel) {
   if (!requireAuth(actionLabel)) return false;
 
@@ -102,6 +99,35 @@ function buildStudentPayload(formData) {
     color: (formData.get("color") || "").trim(),
     vigencia: formData.get("vigencia") === "on",
   };
+}
+
+function fillUserForm(user) {
+  userForm.elements.lookup_username.value = user.username || "";
+  userForm.elements.username.value = user.username || "";
+  userForm.elements.password.value = "";
+  userForm.elements.role.value = user.role || "CONSULTA";
+  selectedUsername = user.username || "";
+}
+
+function fillStudentForm(student) {
+  studentForm.elements.lookup_documento.value = student.documento || "";
+  studentForm.elements.lookup_placa.value = student.placa || "";
+  studentForm.elements.documento.value = student.documento || "";
+  studentForm.elements.qr_uid.value = student.qr_uid || "";
+  studentForm.elements.nombre.value = student.nombre || "";
+  studentForm.elements.carrera.value = student.carrera || "";
+  studentForm.elements.placa.value = student.placa || "";
+  studentForm.elements.color.value = student.color || "";
+  studentForm.elements.vigencia.checked = Boolean(student.vigencia);
+  selectedStudentDocumento = student.documento || "";
+}
+
+function resetUserSelection() {
+  selectedUsername = "";
+}
+
+function resetStudentSelection() {
+  selectedStudentDocumento = "";
 }
 
 async function apiFetch(url, options = {}) {
@@ -178,6 +204,8 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   localStorage.removeItem("access_token");
   localStorage.removeItem("auth_user");
   refreshSessionUI();
+  resetUserSelection();
+  resetStudentSelection();
   printResult("Sesion cerrada", { ok: true });
 });
 
@@ -196,6 +224,7 @@ userForm.addEventListener("submit", async (event) => {
 
     printResult("Usuario creado", data);
     form.reset();
+    fillUserForm(data.usuario);
   } catch (error) {
     printResult("Error creando usuario", error, true);
   }
@@ -212,23 +241,43 @@ document.getElementById("users-btn").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("update-user-btn").addEventListener("click", async () => {
-  if (!ensureAdmin("editar usuarios")) return;
+document.getElementById("search-user-btn").addEventListener("click", async () => {
+  if (!ensureAdmin("buscar usuarios")) return;
 
-  const formData = new FormData(userForm);
-  const id = parsePositiveInt(formData.get("id"));
+  const lookupUsername = (userForm.elements.lookup_username.value || userForm.elements.username.value || "").trim();
 
-  if (!id) {
-    printResult("Error editando usuario", { error: "Debes indicar un ID de usuario valido" }, true);
+  if (!lookupUsername) {
+    printResult("Error buscando usuario", { error: "Debes indicar un username" }, true);
     return;
   }
 
   try {
-    const data = await apiFetch(`/admin/usuarios/${id}`, {
+    const data = await apiFetch(`/admin/usuarios/username/${encodeURIComponent(lookupUsername)}`);
+    fillUserForm(data);
+    printResult("Usuario encontrado", data);
+  } catch (error) {
+    printResult("Error buscando usuario", error, true);
+  }
+});
+
+document.getElementById("update-user-btn").addEventListener("click", async () => {
+  if (!ensureAdmin("editar usuarios")) return;
+
+  const formData = new FormData(userForm);
+  const lookupUsername = (userForm.elements.lookup_username.value || selectedUsername || "").trim();
+
+  if (!lookupUsername) {
+    printResult("Error editando usuario", { error: "Debes buscar primero un usuario por username" }, true);
+    return;
+  }
+
+  try {
+    const data = await apiFetch(`/admin/usuarios/username/${encodeURIComponent(lookupUsername)}`, {
       method: "PUT",
       body: JSON.stringify(buildUserPayload(formData)),
     });
 
+    fillUserForm(data.usuario);
     printResult("Usuario actualizado", data);
   } catch (error) {
     printResult("Error editando usuario", error, true);
@@ -238,21 +287,21 @@ document.getElementById("update-user-btn").addEventListener("click", async () =>
 document.getElementById("delete-user-btn").addEventListener("click", async () => {
   if (!ensureAdmin("eliminar usuarios")) return;
 
-  const formData = new FormData(userForm);
-  const id = parsePositiveInt(formData.get("id"));
+  const lookupUsername = (userForm.elements.lookup_username.value || selectedUsername || "").trim();
 
-  if (!id) {
-    printResult("Error eliminando usuario", { error: "Debes indicar un ID de usuario valido" }, true);
+  if (!lookupUsername) {
+    printResult("Error eliminando usuario", { error: "Debes buscar primero un usuario por username" }, true);
     return;
   }
 
   try {
-    const data = await apiFetch(`/admin/usuarios/${id}`, {
+    const data = await apiFetch(`/admin/usuarios/username/${encodeURIComponent(lookupUsername)}`, {
       method: "DELETE",
     });
 
     printResult("Usuario eliminado", data);
     userForm.reset();
+    resetUserSelection();
   } catch (error) {
     printResult("Error eliminando usuario", error, true);
   }
@@ -283,8 +332,32 @@ studentForm.addEventListener("submit", async (event) => {
 
     printResult("Estudiante registrado", data);
     form.reset();
+    fillStudentForm({ ...payload, ...data.estudiante, placa: payload.placa, color: payload.color });
   } catch (error) {
     printResult("Error registrando estudiante", error, true);
+  }
+});
+
+document.getElementById("search-student-btn").addEventListener("click", async () => {
+  if (!ensureAdmin("buscar estudiantes")) return;
+
+  const lookupDocumento = (studentForm.elements.lookup_documento.value || studentForm.elements.documento.value || "").trim();
+  const lookupPlaca = normalizePlate(studentForm.elements.lookup_placa.value || studentForm.elements.placa.value || "");
+
+  if (!lookupDocumento && !lookupPlaca) {
+    printResult("Error buscando estudiante", { error: "Debes indicar documento o placa" }, true);
+    return;
+  }
+
+  try {
+    const data = lookupDocumento
+      ? await apiFetch(`/admin/estudiantes/documento/${encodeURIComponent(lookupDocumento)}`)
+      : await apiFetch(`/admin/estudiantes/placa/${encodeURIComponent(lookupPlaca)}`);
+
+    fillStudentForm(data);
+    printResult("Estudiante encontrado", data);
+  } catch (error) {
+    printResult("Error buscando estudiante", error, true);
   }
 });
 
@@ -292,11 +365,11 @@ document.getElementById("update-student-btn").addEventListener("click", async ()
   if (!ensureAdmin("editar estudiantes")) return;
 
   const formData = new FormData(studentForm);
-  const id = parsePositiveInt(formData.get("id"));
   const payload = buildStudentPayload(formData);
+  const lookupDocumento = (studentForm.elements.lookup_documento.value || selectedStudentDocumento || "").trim();
 
-  if (!id) {
-    printResult("Error editando estudiante", { error: "Debes indicar un ID de estudiante valido" }, true);
+  if (!lookupDocumento) {
+    printResult("Error editando estudiante", { error: "Debes buscar primero un estudiante por documento o placa" }, true);
     return;
   }
 
@@ -306,11 +379,12 @@ document.getElementById("update-student-btn").addEventListener("click", async ()
   }
 
   try {
-    const data = await apiFetch(`/admin/estudiantes/${id}`, {
+    const data = await apiFetch(`/admin/estudiantes/documento/${encodeURIComponent(lookupDocumento)}`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
 
+    fillStudentForm({ ...payload, ...data.estudiante, placa: payload.placa, color: payload.color });
     printResult("Estudiante actualizado", data);
   } catch (error) {
     printResult("Error editando estudiante", error, true);
@@ -320,27 +394,31 @@ document.getElementById("update-student-btn").addEventListener("click", async ()
 document.getElementById("delete-student-btn").addEventListener("click", async () => {
   if (!ensureAdmin("eliminar estudiantes")) return;
 
-  const formData = new FormData(studentForm);
-  const id = parsePositiveInt(formData.get("id"));
+  const lookupDocumento = (studentForm.elements.lookup_documento.value || selectedStudentDocumento || "").trim();
 
-  if (!id) {
-    printResult("Error eliminando estudiante", { error: "Debes indicar un ID de estudiante valido" }, true);
+  if (!lookupDocumento) {
+    printResult("Error eliminando estudiante", { error: "Debes buscar primero un estudiante por documento o placa" }, true);
     return;
   }
 
   try {
-    const data = await apiFetch(`/admin/estudiantes/${id}`, {
+    const data = await apiFetch(`/admin/estudiantes/documento/${encodeURIComponent(lookupDocumento)}`, {
       method: "DELETE",
     });
 
     printResult("Estudiante eliminado", data);
     studentForm.reset();
+    resetStudentSelection();
   } catch (error) {
     printResult("Error eliminando estudiante", error, true);
   }
 });
 
 document.querySelector('input[name="placa"]').addEventListener("input", (event) => {
+  event.target.value = normalizePlate(event.target.value).slice(0, 6);
+});
+
+document.querySelector('input[name="lookup_placa"]').addEventListener("input", (event) => {
   event.target.value = normalizePlate(event.target.value).slice(0, 6);
 });
 

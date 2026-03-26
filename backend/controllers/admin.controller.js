@@ -64,6 +64,20 @@ function sanitizeStudentPayload(body = {}) {
   };
 }
 
+function buildConflictMessage(error) {
+  if (error.code === "23505") {
+    if (error.constraint === "estudiantes_qr_uid_key") {
+      return "qr_uid ya esta registrado en otro estudiante";
+    }
+
+    if (error.constraint === "estudiantes_documento_key") {
+      return "documento ya esta registrado en otro estudiante";
+    }
+  }
+
+  return null;
+}
+
 async function listarUsuarios(_req, res, next) {
   try {
     const result = await usuariosModel.listUsuarios();
@@ -110,6 +124,26 @@ async function crearUsuario(req, res, next) {
       message: "Usuario creado",
       usuario: created.rows[0],
     });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function obtenerUsuarioPorUsername(req, res, next) {
+  const username = normalizeText(req.params.username);
+
+  if (!username) {
+    return res.status(400).json({ error: "username es requerido" });
+  }
+
+  try {
+    const result = await usuariosModel.findByUsername(username);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    return res.status(200).json(result.rows[0]);
   } catch (error) {
     return next(error);
   }
@@ -174,6 +208,27 @@ async function actualizarUsuario(req, res, next) {
   }
 }
 
+async function actualizarUsuarioPorUsername(req, res, next) {
+  const username = normalizeText(req.params.username);
+
+  if (!username) {
+    return res.status(400).json({ error: "username es requerido" });
+  }
+
+  try {
+    const existing = await usuariosModel.findByUsername(username);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    req.params.id = String(existing.rows[0].id);
+    return actualizarUsuario(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function eliminarUsuario(req, res, next) {
   const id = parseId(req.params.id);
 
@@ -192,6 +247,67 @@ async function eliminarUsuario(req, res, next) {
       message: "Usuario eliminado",
       usuario: deleted.rows[0],
     });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function eliminarUsuarioPorUsername(req, res, next) {
+  const username = normalizeText(req.params.username);
+
+  if (!username) {
+    return res.status(400).json({ error: "username es requerido" });
+  }
+
+  try {
+    const existing = await usuariosModel.findByUsername(username);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    req.params.id = String(existing.rows[0].id);
+    return eliminarUsuario(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function obtenerEstudiantePorDocumento(req, res, next) {
+  const documento = normalizeText(req.params.documento);
+
+  if (!documento) {
+    return res.status(400).json({ error: "documento es requerido" });
+  }
+
+  try {
+    const result = await estudiantesModel.findByDocumento(documento);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    return res.status(200).json(result.rows[0]);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function obtenerEstudiantePorPlaca(req, res, next) {
+  const placa = normalizePlate(req.params.placa);
+
+  if (!placa) {
+    return res.status(400).json({ error: "placa es requerida" });
+  }
+
+  try {
+    const result = await estudiantesModel.findByPlaca(placa);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    return res.status(200).json(result.rows[0]);
   } catch (error) {
     return next(error);
   }
@@ -232,19 +348,35 @@ async function actualizarEstudiante(req, res, next) {
       // no-op
     }
 
-    if (error.code === "23505") {
-      if (error.constraint === "estudiantes_qr_uid_key") {
-        return res.status(409).json({ error: "qr_uid ya esta registrado en otro estudiante" });
-      }
-
-      if (error.constraint === "estudiantes_documento_key") {
-        return res.status(409).json({ error: "documento ya esta registrado en otro estudiante" });
-      }
+    const conflict = buildConflictMessage(error);
+    if (conflict) {
+      return res.status(409).json({ error: conflict });
     }
 
     return next(error);
   } finally {
     client.release();
+  }
+}
+
+async function actualizarEstudiantePorDocumento(req, res, next) {
+  const documento = normalizeText(req.params.documento);
+
+  if (!documento) {
+    return res.status(400).json({ error: "documento es requerido" });
+  }
+
+  try {
+    const existing = await estudiantesModel.findByDocumento(documento);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    req.params.id = String(existing.rows[0].estudiante_id);
+    return actualizarEstudiante(req, res, next);
+  } catch (error) {
+    return next(error);
   }
 }
 
@@ -283,11 +415,39 @@ async function eliminarEstudiante(req, res, next) {
   }
 }
 
+async function eliminarEstudiantePorDocumento(req, res, next) {
+  const documento = normalizeText(req.params.documento);
+
+  if (!documento) {
+    return res.status(400).json({ error: "documento es requerido" });
+  }
+
+  try {
+    const existing = await estudiantesModel.findByDocumento(documento);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    req.params.id = String(existing.rows[0].estudiante_id);
+    return eliminarEstudiante(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   listarUsuarios,
   crearUsuario,
+  obtenerUsuarioPorUsername,
   actualizarUsuario,
+  actualizarUsuarioPorUsername,
   eliminarUsuario,
+  eliminarUsuarioPorUsername,
+  obtenerEstudiantePorDocumento,
+  obtenerEstudiantePorPlaca,
   actualizarEstudiante,
+  actualizarEstudiantePorDocumento,
   eliminarEstudiante,
+  eliminarEstudiantePorDocumento,
 };

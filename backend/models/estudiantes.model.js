@@ -47,6 +47,27 @@ async function findByDocumento(documento) {
   );
 }
 
+async function findByPlaca(placa) {
+  return pool.query(
+    `
+    SELECT
+      e.id AS estudiante_id,
+      e.documento,
+      e.qr_uid,
+      e.nombre,
+      e.carrera,
+      e.vigencia,
+      m.placa,
+      m.color
+    FROM estudiantes e
+    JOIN motocicletas m ON m.estudiante_id = e.id
+    WHERE UPPER(m.placa) = UPPER($1)
+    LIMIT 1
+    `,
+    [placa]
+  );
+}
+
 async function findById(id) {
   return pool.query(
     `
@@ -137,6 +158,7 @@ async function findByQrUidForUpdate(client, qrUid) {
 module.exports = {
   createPrimerIngreso,
   findByDocumento,
+  findByPlaca,
   findById,
   listAll,
   findByQrUidForUpdate,

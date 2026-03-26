@@ -58,8 +58,8 @@
         <h2>Usuarios del sistema</h2>
         <form id="user-form" class="form-stack">
           <label>
-            ID usuario
-            <input name="id" type="number" min="1" placeholder="Solo para editar o eliminar">
+            Buscar usuario
+            <input name="lookup_username" type="text" placeholder="username existente">
           </label>
           <label>
             Username
@@ -67,7 +67,7 @@
           </label>
           <label>
             Password
-            <input name="password" type="password" placeholder="Segura123!" required>
+            <input name="password" type="password" placeholder="Segura123!">
           </label>
           <label>
             Rol
@@ -78,6 +78,7 @@
             </select>
           </label>
           <div class="button-row">
+            <button id="search-user-btn" type="button" class="ghost">Buscar usuario</button>
             <button type="submit">Crear usuario</button>
             <button id="update-user-btn" type="button" class="ghost">Editar usuario</button>
             <button id="delete-user-btn" type="button" class="ghost danger">Eliminar usuario</button>
@@ -90,8 +91,12 @@
         <h2>Registrar estudiante</h2>
         <form id="student-form" class="form-grid">
           <label>
-            ID estudiante
-            <input name="id" type="number" min="1" placeholder="Solo para editar o eliminar">
+            Buscar por documento
+            <input name="lookup_documento" type="text" placeholder="Documento existente">
+          </label>
+          <label>
+            Buscar por placa
+            <input name="lookup_placa" type="text" placeholder="ABC12D" maxlength="6">
           </label>
           <label>
             Documento
@@ -142,6 +147,7 @@
             <span>Vigente</span>
           </label>
           <div class="button-row span-two">
+            <button id="search-student-btn" type="button" class="ghost">Buscar estudiante</button>
             <button type="submit">Registrar primer ingreso</button>
             <button id="update-student-btn" type="button" class="ghost">Editar estudiante</button>
             <button id="delete-student-btn" type="button" class="ghost danger">Eliminar estudiante</button>

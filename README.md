@@ -137,11 +137,18 @@ Todas las rutas protegidas requieren `Authorization: Bearer <token>`.
 ### Admin
 - `GET /admin/reportes` (`ADMIN`)
 - `GET /admin/usuarios` (`ADMIN`)
+- `GET /admin/usuarios/username/:username` (`ADMIN`)
 - `POST /admin/usuarios` (`ADMIN`)
 - `PUT /admin/usuarios/:id` (`ADMIN`)
 - `DELETE /admin/usuarios/:id` (`ADMIN`)
+- `PUT /admin/usuarios/username/:username` (`ADMIN`)
+- `DELETE /admin/usuarios/username/:username` (`ADMIN`)
+- `GET /admin/estudiantes/documento/:documento` (`ADMIN`)
+- `GET /admin/estudiantes/placa/:placa` (`ADMIN`)
 - `PUT /admin/estudiantes/:id` (`ADMIN`)
 - `DELETE /admin/estudiantes/:id` (`ADMIN`)
+- `PUT /admin/estudiantes/documento/:documento` (`ADMIN`)
+- `DELETE /admin/estudiantes/documento/:documento` (`ADMIN`)
 
 ## Estado actual
 - Flujo protegido por JWT en rutas sensibles.
@@ -149,7 +156,7 @@ Todas las rutas protegidas requieren `Authorization: Bearer <token>`.
 - Controladores con manejo de errores y transacciones para operaciones criticas.
 - El seed corrige usuarios base existentes para evitar roles heredados inconsistentes.
 - Hay una interfaz web basica en la raiz (`/`) para login, creacion de usuarios, registro de estudiantes y verificacion de datos.
-- La vista de `ADMIN` tambien puede editar y eliminar usuarios, y editar o eliminar estudiantes desde la misma consola visual.
+- La vista de `ADMIN` puede buscar usuarios por `username` y estudiantes por `documento` o `placa`, autocompletar campos y luego editar o eliminar sin depender de IDs visibles.
 
 ## Pruebas
 Comandos genericos:
@@ -187,11 +194,10 @@ npm run test:all
 ## Prueba visual desde la pantalla
 1. Iniciar sesion como `admin`
 2. Pulsar `Ver /auth/me` para confirmar token
-3. Crear un usuario desde `Usuarios del sistema`
-4. Editar o eliminar usuarios indicando `ID usuario`
-5. Registrar un estudiante desde `Registrar estudiante`
+3. Buscar usuarios por `username`, autocompletar y luego crear, editar o eliminar
+4. Registrar un estudiante desde `Registrar estudiante`
    - `placa` debe tener formato `ABC12D` (3 letras, 2 numeros y 1 letra final)
-6. Editar o eliminar estudiantes indicando `ID estudiante`
-7. Buscarlo por documento en `Verificar estudiante`
-8. Registrar movimiento por QR
-9. Verificarlo en `Ver dentro del campus`
+5. Buscar estudiantes por `documento` o `placa`, autocompletar y luego editar o eliminar
+6. Buscarlo por documento en `Verificar estudiante`
+7. Registrar movimiento por QR
+8. Verificarlo en `Ver dentro del campus`
