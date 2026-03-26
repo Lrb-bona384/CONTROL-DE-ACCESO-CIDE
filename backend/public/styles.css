@@ -103,6 +103,10 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.span-two {
+  grid-column: span 2;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -143,6 +147,12 @@ button.ghost {
   color: var(--ink);
   background: transparent;
   border: 1px solid var(--line);
+}
+
+button.danger {
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
 }
 
 button.full {
@@ -198,6 +208,10 @@ button.full {
 
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .span-two {
+    grid-column: span 1;
   }
 
   .button-row {

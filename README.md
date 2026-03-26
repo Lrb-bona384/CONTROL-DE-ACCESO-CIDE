@@ -138,6 +138,10 @@ Todas las rutas protegidas requieren `Authorization: Bearer <token>`.
 - `GET /admin/reportes` (`ADMIN`)
 - `GET /admin/usuarios` (`ADMIN`)
 - `POST /admin/usuarios` (`ADMIN`)
+- `PUT /admin/usuarios/:id` (`ADMIN`)
+- `DELETE /admin/usuarios/:id` (`ADMIN`)
+- `PUT /admin/estudiantes/:id` (`ADMIN`)
+- `DELETE /admin/estudiantes/:id` (`ADMIN`)
 
 ## Estado actual
 - Flujo protegido por JWT en rutas sensibles.
@@ -145,6 +149,7 @@ Todas las rutas protegidas requieren `Authorization: Bearer <token>`.
 - Controladores con manejo de errores y transacciones para operaciones criticas.
 - El seed corrige usuarios base existentes para evitar roles heredados inconsistentes.
 - Hay una interfaz web basica en la raiz (`/`) para login, creacion de usuarios, registro de estudiantes y verificacion de datos.
+- La vista de `ADMIN` tambien puede editar y eliminar usuarios, y editar o eliminar estudiantes desde la misma consola visual.
 
 ## Pruebas
 Comandos genericos:
@@ -183,8 +188,10 @@ npm run test:all
 1. Iniciar sesion como `admin`
 2. Pulsar `Ver /auth/me` para confirmar token
 3. Crear un usuario desde `Usuarios del sistema`
-4. Registrar un estudiante desde `Registrar estudiante`
+4. Editar o eliminar usuarios indicando `ID usuario`
+5. Registrar un estudiante desde `Registrar estudiante`
    - `placa` debe tener formato `ABC12D` (3 letras, 2 numeros y 1 letra final)
-5. Buscarlo por documento en `Verificar estudiante`
-6. Registrar movimiento por QR
-7. Verificarlo en `Ver dentro del campus`
+6. Editar o eliminar estudiantes indicando `ID estudiante`
+7. Buscarlo por documento en `Verificar estudiante`
+8. Registrar movimiento por QR
+9. Verificarlo en `Ver dentro del campus`

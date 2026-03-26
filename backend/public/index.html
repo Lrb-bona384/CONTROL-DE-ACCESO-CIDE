@@ -58,6 +58,10 @@
         <h2>Usuarios del sistema</h2>
         <form id="user-form" class="form-stack">
           <label>
+            ID usuario
+            <input name="id" type="number" min="1" placeholder="Solo para editar o eliminar">
+          </label>
+          <label>
             Username
             <input name="username" type="text" placeholder="nuevo.usuario" required>
           </label>
@@ -73,7 +77,11 @@
               <option value="CONSULTA">CONSULTA</option>
             </select>
           </label>
-          <button type="submit">Crear usuario</button>
+          <div class="button-row">
+            <button type="submit">Crear usuario</button>
+            <button id="update-user-btn" type="button" class="ghost">Editar usuario</button>
+            <button id="delete-user-btn" type="button" class="ghost danger">Eliminar usuario</button>
+          </div>
         </form>
         <button id="users-btn" type="button" class="ghost full">Listar usuarios</button>
       </article>
@@ -81,6 +89,10 @@
       <article class="card wide">
         <h2>Registrar estudiante</h2>
         <form id="student-form" class="form-grid">
+          <label>
+            ID estudiante
+            <input name="id" type="number" min="1" placeholder="Solo para editar o eliminar">
+          </label>
           <label>
             Documento
             <input name="documento" type="text" required>
@@ -129,7 +141,11 @@
             <input name="vigencia" type="checkbox" checked>
             <span>Vigente</span>
           </label>
-          <button type="submit">Registrar primer ingreso</button>
+          <div class="button-row span-two">
+            <button type="submit">Registrar primer ingreso</button>
+            <button id="update-student-btn" type="button" class="ghost">Editar estudiante</button>
+            <button id="delete-student-btn" type="button" class="ghost danger">Eliminar estudiante</button>
+          </div>
         </form>
       </article>
 

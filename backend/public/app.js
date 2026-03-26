@@ -4,6 +4,8 @@ const sessionToken = document.getElementById("session-token");
 
 let authToken = localStorage.getItem("access_token") || "";
 let currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
+const userForm = document.getElementById("user-form");
+const studentForm = document.getElementById("student-form");
 
 function refreshSessionUI() {
   sessionRole.textContent = currentUser ? `${currentUser.username} / ${currentUser.role}` : "Sin iniciar";
@@ -57,6 +59,49 @@ function requireAuth(actionLabel) {
 
 function normalizePlate(value) {
   return value.trim().toUpperCase();
+}
+
+function parsePositiveInt(value) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : null;
+}
+
+function ensureAdmin(actionLabel) {
+  if (!requireAuth(actionLabel)) return false;
+
+  if (currentUser && currentUser.role === "ADMIN") return true;
+
+  printResult(
+    "Permiso insuficiente",
+    { error: `Solo ADMIN puede ${actionLabel}.` },
+    true
+  );
+  return false;
+}
+
+function buildUserPayload(formData, { requireAllFields = false } = {}) {
+  const username = (formData.get("username") || "").trim();
+  const password = formData.get("password") || "";
+  const role = formData.get("role");
+  const payload = {};
+
+  if (requireAllFields || username) payload.username = username;
+  if (requireAllFields || password) payload.password = password;
+  if (requireAllFields || role) payload.role = role;
+
+  return payload;
+}
+
+function buildStudentPayload(formData) {
+  return {
+    documento: (formData.get("documento") || "").trim(),
+    qr_uid: (formData.get("qr_uid") || "").trim(),
+    nombre: (formData.get("nombre") || "").trim(),
+    carrera: (formData.get("carrera") || "").trim(),
+    placa: normalizePlate(formData.get("placa") || ""),
+    color: (formData.get("color") || "").trim(),
+    vigencia: formData.get("vigencia") === "on",
+  };
 }
 
 async function apiFetch(url, options = {}) {
@@ -136,9 +181,9 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   printResult("Sesion cerrada", { ok: true });
 });
 
-document.getElementById("user-form").addEventListener("submit", async (event) => {
+userForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!requireAuth("crear usuarios")) return;
+  if (!ensureAdmin("crear usuarios")) return;
 
   const form = event.currentTarget;
   const formData = new FormData(form);
@@ -146,11 +191,7 @@ document.getElementById("user-form").addEventListener("submit", async (event) =>
   try {
     const data = await apiFetch("/admin/usuarios", {
       method: "POST",
-      body: JSON.stringify({
-        username: formData.get("username"),
-        password: formData.get("password"),
-        role: formData.get("role"),
-      }),
+      body: JSON.stringify(buildUserPayload(formData, { requireAllFields: true })),
     });
 
     printResult("Usuario creado", data);
@@ -161,7 +202,7 @@ document.getElementById("user-form").addEventListener("submit", async (event) =>
 });
 
 document.getElementById("users-btn").addEventListener("click", async () => {
-  if (!requireAuth("listar usuarios")) return;
+  if (!ensureAdmin("listar usuarios")) return;
 
   try {
     const data = await apiFetch("/admin/usuarios");
@@ -171,15 +212,61 @@ document.getElementById("users-btn").addEventListener("click", async () => {
   }
 });
 
-document.getElementById("student-form").addEventListener("submit", async (event) => {
+document.getElementById("update-user-btn").addEventListener("click", async () => {
+  if (!ensureAdmin("editar usuarios")) return;
+
+  const formData = new FormData(userForm);
+  const id = parsePositiveInt(formData.get("id"));
+
+  if (!id) {
+    printResult("Error editando usuario", { error: "Debes indicar un ID de usuario valido" }, true);
+    return;
+  }
+
+  try {
+    const data = await apiFetch(`/admin/usuarios/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(buildUserPayload(formData)),
+    });
+
+    printResult("Usuario actualizado", data);
+  } catch (error) {
+    printResult("Error editando usuario", error, true);
+  }
+});
+
+document.getElementById("delete-user-btn").addEventListener("click", async () => {
+  if (!ensureAdmin("eliminar usuarios")) return;
+
+  const formData = new FormData(userForm);
+  const id = parsePositiveInt(formData.get("id"));
+
+  if (!id) {
+    printResult("Error eliminando usuario", { error: "Debes indicar un ID de usuario valido" }, true);
+    return;
+  }
+
+  try {
+    const data = await apiFetch(`/admin/usuarios/${id}`, {
+      method: "DELETE",
+    });
+
+    printResult("Usuario eliminado", data);
+    userForm.reset();
+  } catch (error) {
+    printResult("Error eliminando usuario", error, true);
+  }
+});
+
+studentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!requireAuth("registrar estudiantes")) return;
 
   const form = event.currentTarget;
   const formData = new FormData(form);
-  const placa = normalizePlate(formData.get("placa") || "");
+  const payload = buildStudentPayload(formData);
 
-  if (!/^[A-Z]{3}\d{2}[A-Z]$/.test(placa)) {
+  if (!/^[A-Z]{3}\d{2}[A-Z]$/.test(payload.placa)) {
     printResult(
       "Error registrando estudiante",
       { error: "La placa debe tener formato ABC12D" },
@@ -191,21 +278,65 @@ document.getElementById("student-form").addEventListener("submit", async (event)
   try {
     const data = await apiFetch("/estudiantes/primer-ingreso", {
       method: "POST",
-      body: JSON.stringify({
-        documento: formData.get("documento"),
-        qr_uid: formData.get("qr_uid"),
-        nombre: formData.get("nombre"),
-        carrera: formData.get("carrera"),
-        placa,
-        color: formData.get("color"),
-        vigencia: formData.get("vigencia") === "on",
-      }),
+      body: JSON.stringify(payload),
     });
 
     printResult("Estudiante registrado", data);
     form.reset();
   } catch (error) {
     printResult("Error registrando estudiante", error, true);
+  }
+});
+
+document.getElementById("update-student-btn").addEventListener("click", async () => {
+  if (!ensureAdmin("editar estudiantes")) return;
+
+  const formData = new FormData(studentForm);
+  const id = parsePositiveInt(formData.get("id"));
+  const payload = buildStudentPayload(formData);
+
+  if (!id) {
+    printResult("Error editando estudiante", { error: "Debes indicar un ID de estudiante valido" }, true);
+    return;
+  }
+
+  if (!/^[A-Z]{3}\d{2}[A-Z]$/.test(payload.placa)) {
+    printResult("Error editando estudiante", { error: "La placa debe tener formato ABC12D" }, true);
+    return;
+  }
+
+  try {
+    const data = await apiFetch(`/admin/estudiantes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+
+    printResult("Estudiante actualizado", data);
+  } catch (error) {
+    printResult("Error editando estudiante", error, true);
+  }
+});
+
+document.getElementById("delete-student-btn").addEventListener("click", async () => {
+  if (!ensureAdmin("eliminar estudiantes")) return;
+
+  const formData = new FormData(studentForm);
+  const id = parsePositiveInt(formData.get("id"));
+
+  if (!id) {
+    printResult("Error eliminando estudiante", { error: "Debes indicar un ID de estudiante valido" }, true);
+    return;
+  }
+
+  try {
+    const data = await apiFetch(`/admin/estudiantes/${id}`, {
+      method: "DELETE",
+    });
+
+    printResult("Estudiante eliminado", data);
+    studentForm.reset();
+  } catch (error) {
+    printResult("Error eliminando estudiante", error, true);
   }
 });
 

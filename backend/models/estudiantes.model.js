@@ -67,6 +67,47 @@ async function findById(id) {
   );
 }
 
+async function updateById(client, id, payload) {
+  const { documento, qr_uid, nombre, carrera, vigencia, placa, color } = payload;
+
+  const estudianteResult = await client.query(
+    `
+    UPDATE estudiantes
+    SET documento = $1, qr_uid = $2, nombre = $3, carrera = $4, vigencia = $5
+    WHERE id = $6
+    RETURNING id, documento, qr_uid, nombre, carrera, vigencia
+    `,
+    [documento, qr_uid, nombre, carrera, vigencia, id]
+  );
+
+  if (estudianteResult.rows.length === 0) {
+    return { rows: [] };
+  }
+
+  await client.query(
+    `
+    INSERT INTO motocicletas (estudiante_id, placa, color)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (estudiante_id)
+    DO UPDATE SET placa = EXCLUDED.placa, color = EXCLUDED.color
+    `,
+    [id, placa, color]
+  );
+
+  return estudianteResult;
+}
+
+async function deleteById(client, id) {
+  return client.query(
+    `
+    DELETE FROM estudiantes
+    WHERE id = $1
+    RETURNING id, documento, qr_uid, nombre, carrera, vigencia
+    `,
+    [id]
+  );
+}
+
 async function listAll() {
   return pool.query(
     `
@@ -99,4 +140,6 @@ module.exports = {
   findById,
   listAll,
   findByQrUidForUpdate,
+  updateById,
+  deleteById,
 };
