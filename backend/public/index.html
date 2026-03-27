@@ -6,11 +6,38 @@
   <title>Control de Acceso CIDE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div id="alerts" class="alerts" aria-live="polite" aria-atomic="true"></div>
   <main class="app-shell">
+    <header class="site-header">
+      <div class="site-topline">
+        <span class="topline-copy">Institucion de Educacion Superior</span>
+        <div class="topline-links">
+          <span class="topline-chip">Mesa TI Virtualidad</span>
+          <span class="topline-chip">Mesa de Autogestion</span>
+        </div>
+      </div>
+      <div class="masthead">
+        <div class="wordmark-block">
+          <p class="eyebrow">Control de Acceso Operativo</p>
+          <h1 class="wordmark">CIDE</h1>
+          <p class="submark">Institucion de Educacion Superior</p>
+        </div>
+        <nav class="site-nav" aria-label="Secciones principales">
+          <a href="#login-panel">Acceso</a>
+          <a href="#usuarios-panel">Usuarios</a>
+          <a href="#estudiantes-panel">Estudiantes</a>
+          <a href="#monitoreo-panel">Monitoreo</a>
+        </nav>
+      </div>
+    </header>
+    <section class="brand-strip">
+      <span class="brand-chip">Mesa de Autogestion</span>
+      <span class="brand-chip">Control de Acceso QR</span>
+    </section>
     <section class="hero">
       <p class="eyebrow">Control de Acceso CIDE</p>
       <h1>Registro, login y verificacion en una sola consola visual.</h1>
@@ -19,19 +46,70 @@
         consultar informacion y registrar movimientos en tiempo real.
       </p>
       <div class="status-bar">
-        <div>
+        <div class="status-block">
           <span class="status-label">Sesion</span>
           <strong id="session-role">Sin iniciar</strong>
         </div>
-        <div>
+        <div class="status-block">
           <span class="status-label">Token</span>
           <strong id="session-token">No disponible</strong>
+        </div>
+        <div class="status-block role-block">
+          <span class="status-label">Permisos activos</span>
+          <strong id="session-permissions">Inicia sesion para ver tus permisos</strong>
         </div>
       </div>
     </section>
 
+    <section class="dashboard-strip">
+      <article class="metric-card">
+        <p class="eyebrow">Operacion</p>
+        <strong id="metric-inside" class="metric-value">0</strong>
+        <p class="metric-label">Dentro del campus</p>
+      </article>
+      <article class="metric-card">
+        <p class="eyebrow">Base actual</p>
+        <strong id="metric-students" class="metric-value">0</strong>
+        <p class="metric-label">Estudiantes cargados</p>
+      </article>
+      <article class="metric-card role-admin-only">
+        <p class="eyebrow">Seguridad</p>
+        <strong id="metric-users" class="metric-value">0</strong>
+        <p class="metric-label">Usuarios del sistema</p>
+      </article>
+      <article class="metric-card highlight">
+        <p class="eyebrow">Actividad reciente</p>
+        <strong id="metric-last-movement" class="metric-value small">Sin movimiento reciente</strong>
+        <p class="metric-label">Ultimo evento visible</p>
+      </article>
+    </section>
+
+    <section class="dashboard-summary card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Resumen operativo</p>
+          <h2>Lectura rapida del sistema</h2>
+        </div>
+        <span id="dashboard-status" class="table-meta">Esperando datos</span>
+      </div>
+      <div class="summary-grid">
+        <article class="summary-panel">
+          <p class="eyebrow">Turno</p>
+          <p id="dashboard-copy" class="summary-copy">
+            Inicia sesion y carga tablas para ver un estado consolidado del sistema.
+          </p>
+        </article>
+        <article class="summary-panel">
+          <p class="eyebrow">Prioridad sugerida</p>
+          <p id="dashboard-priority" class="summary-copy">
+            Comienza listando estudiantes o consultando quienes estan dentro del campus.
+          </p>
+        </article>
+      </div>
+    </section>
+
     <section class="grid">
-      <article class="card accent">
+      <article id="login-panel" class="card accent">
         <h2>Login</h2>
         <form id="login-form" class="form-stack">
           <label>
@@ -52,9 +130,16 @@
           <button id="profile-btn" type="button">Ver /auth/me</button>
           <button id="logout-btn" type="button" class="ghost">Cerrar sesion</button>
         </div>
+        <div id="session-summary" class="session-summary">
+          <p class="session-summary-title">Modo actual</p>
+          <p id="session-summary-copy" class="session-summary-copy">Sin sesion activa. Inicia con admin, guarda o consulta.</p>
+          <div id="role-badges" class="role-badges">
+            <span class="role-pill muted">Sin rol</span>
+          </div>
+        </div>
       </article>
 
-      <article class="card">
+      <article id="usuarios-panel" class="card role-admin-only">
         <h2>Usuarios del sistema</h2>
         <form id="user-form" class="form-stack">
           <label>
@@ -87,14 +172,27 @@
         <button id="users-btn" type="button" class="ghost full">Listar usuarios</button>
       </article>
 
-      <article class="card wide">
+      <article id="estudiantes-panel" class="card wide role-admin-guard">
         <h2>Registrar estudiante</h2>
+        <div class="guided-search">
+          <div class="guided-search-head">
+            <p class="eyebrow">Flujo guiado</p>
+            <h3>1. Elige como buscar al estudiante</h3>
+          </div>
+          <div class="segmented-control" id="student-search-mode">
+            <button type="button" class="segment is-active" data-search-mode="documento">Buscar por documento</button>
+            <button type="button" class="segment" data-search-mode="placa">Buscar por placa</button>
+          </div>
+          <p id="student-search-hint" class="guided-copy">
+            Usa el documento para cargar un estudiante ya registrado o para confirmar si debes crear uno nuevo.
+          </p>
+        </div>
         <form id="student-form" class="form-grid">
-          <label>
+          <label id="lookup-documento-group">
             Buscar por documento
             <input name="lookup_documento" type="text" placeholder="Documento existente">
           </label>
-          <label>
+          <label id="lookup-placa-group">
             Buscar por placa
             <input name="lookup_placa" type="text" placeholder="ABC12D" maxlength="6">
           </label>
@@ -153,9 +251,15 @@
             <button id="delete-student-btn" type="button" class="ghost danger">Eliminar estudiante</button>
           </div>
         </form>
+        <div class="next-step-card">
+          <p class="eyebrow">Siguiente paso</p>
+          <p id="student-next-step" class="next-step-copy">
+            Busca por documento o placa. Si lo encontramos, cargaremos el formulario para editarlo o verificarlo.
+          </p>
+        </div>
       </article>
 
-      <article class="card">
+      <article class="card role-authenticated">
         <h2>Verificar estudiante</h2>
         <form id="document-form" class="form-stack">
           <label>
@@ -177,11 +281,66 @@
         </form>
       </article>
 
-      <article class="card">
+      <article id="monitoreo-panel" class="card role-authenticated">
         <h2>Monitoreo</h2>
         <div class="button-row">
           <button id="inside-btn" type="button">Ver dentro del campus</button>
           <button id="students-btn" type="button" class="ghost">Listar estudiantes</button>
+          <button id="movements-btn" type="button" class="ghost">Ver movimientos</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid data-grid">
+      <article class="card wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Panel operativo</p>
+            <h2>Usuarios</h2>
+          </div>
+          <span id="users-meta" class="table-meta">Sin cargar</span>
+        </div>
+        <div id="users-table-wrap" class="table-wrap empty-state">
+          Carga el listado de usuarios para ver acciones por fila.
+        </div>
+      </article>
+
+      <article class="card wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Panel operativo</p>
+            <h2>Estudiantes</h2>
+          </div>
+          <span id="students-meta" class="table-meta">Sin cargar</span>
+        </div>
+        <div id="students-table-wrap" class="table-wrap empty-state">
+          Carga el listado de estudiantes para ver acciones por fila.
+        </div>
+      </article>
+
+      <article class="card wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Monitoreo vivo</p>
+            <h2>Dentro del campus</h2>
+          </div>
+          <span id="inside-meta" class="table-meta">Sin cargar</span>
+        </div>
+        <div id="inside-table-wrap" class="table-wrap empty-state">
+          Consulta dentro del campus para ver el estado en una tabla.
+        </div>
+      </article>
+
+      <article class="card wide">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Actividad reciente</p>
+            <h2>Historial de movimientos</h2>
+          </div>
+          <span id="movements-meta" class="table-meta">Sin cargar</span>
+        </div>
+        <div id="movements-table-wrap" class="table-wrap empty-state">
+          Consulta movimientos para ver entradas y salidas recientes.
         </div>
       </article>
     </section>
@@ -193,6 +352,38 @@
       </div>
       <pre id="output" class="output">Esperando acciones...</pre>
     </section>
+
+    <footer class="site-footer">
+      <div class="footer-grid">
+        <section>
+          <p class="eyebrow">Control Operativo</p>
+          <h2>Centro de mando CIDE</h2>
+          <p>
+            Consola visual para porteria, administracion y consulta. Pensada para operar
+            autenticacion, estudiantes y movimientos con respuesta inmediata.
+          </p>
+        </section>
+        <section>
+          <p class="eyebrow">Modulos</p>
+          <ul class="footer-list">
+            <li>Autenticacion JWT</li>
+            <li>Gestion de usuarios</li>
+            <li>Registro de estudiantes</li>
+            <li>Monitoreo dentro del campus</li>
+          </ul>
+        </section>
+        <section>
+          <p class="eyebrow">Operacion</p>
+          <ul class="footer-list">
+            <li>Administra por username</li>
+            <li>Busca por documento o placa</li>
+            <li>Registra ingresos por QR</li>
+            <li>Visualiza cambios en tablas</li>
+          </ul>
+        </section>
+      </div>
+      <p class="footer-bottom">CIDE · Control de Acceso QR · Plataforma interna de pruebas operativas</p>
+    </footer>
   </main>
 
   <div id="confirm-modal" class="modal hidden" aria-hidden="true">
