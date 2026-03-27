@@ -3,6 +3,7 @@ const sessionRole = document.getElementById("session-role");
 const sessionToken = document.getElementById("session-token");
 const confirmModal = document.getElementById("confirm-modal");
 const modalMessage = document.getElementById("modal-message");
+const modalDetails = document.getElementById("modal-details");
 const modalConfirmBtn = document.getElementById("modal-confirm-btn");
 const modalCancelBtn = document.getElementById("modal-cancel-btn");
 
@@ -135,9 +136,19 @@ function resetStudentSelection() {
   selectedStudentDocumento = "";
 }
 
-function openConfirmModal(message, action) {
+function formatConfirmDetails(details) {
+  if (!details) return "";
+
+  return Object.entries(details)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([key, value]) => `${key}: ${value}`)
+    .join("\n");
+}
+
+function openConfirmModal(message, details, action) {
   pendingConfirmAction = action;
   modalMessage.textContent = message;
+  modalDetails.textContent = formatConfirmDetails(details);
   confirmModal.classList.remove("hidden");
   confirmModal.setAttribute("aria-hidden", "false");
   modalConfirmBtn.focus();
@@ -149,9 +160,9 @@ function closeConfirmModal() {
   confirmModal.setAttribute("aria-hidden", "true");
 }
 
-async function runWithConfirmation(message, action) {
+async function runWithConfirmation(message, details, action) {
   return new Promise((resolve) => {
-    openConfirmModal(message, async () => {
+    openConfirmModal(message, details, async () => {
       try {
         await action();
       } finally {
@@ -322,7 +333,13 @@ document.getElementById("update-user-btn").addEventListener("click", async () =>
   }
 
   await runWithConfirmation(
-    `Vas a actualizar el usuario "${lookupUsername}". Verifica role y password antes de continuar.`,
+    "Se va a editar este usuario. ¿Estas seguro de que deseas modificarlo?",
+    {
+      username_actual: lookupUsername,
+      username_nuevo: formData.get("username"),
+      role_nuevo: formData.get("role"),
+      password_cambiara: formData.get("password") ? "Si" : "No",
+    },
     async () => {
       try {
         const data = await apiFetch(`/admin/usuarios/username/${encodeURIComponent(lookupUsername)}`, {
@@ -350,7 +367,11 @@ document.getElementById("delete-user-btn").addEventListener("click", async () =>
   }
 
   await runWithConfirmation(
-    `Vas a eliminar el usuario "${lookupUsername}". Esta accion no se puede deshacer.`,
+    "Se va a eliminar este usuario. ¿Estas seguro de que deseas continuar?",
+    {
+      username: lookupUsername,
+      role: userForm.elements.role.value,
+    },
     async () => {
       try {
         const data = await apiFetch(`/admin/usuarios/username/${encodeURIComponent(lookupUsername)}`, {
@@ -439,7 +460,16 @@ document.getElementById("update-student-btn").addEventListener("click", async ()
   }
 
   await runWithConfirmation(
-    `Vas a actualizar el estudiante con documento "${lookupDocumento}". Confirma que los datos cargados son correctos.`,
+    "Se va a editar este estudiante. ¿Estas seguro de que deseas modificarlo?",
+    {
+      documento_actual: lookupDocumento,
+      documento_nuevo: payload.documento,
+      nombre: payload.nombre,
+      carrera: payload.carrera,
+      placa: payload.placa,
+      color: payload.color,
+      vigencia: payload.vigencia ? "Activa" : "Inactiva",
+    },
     async () => {
       try {
         const data = await apiFetch(`/admin/estudiantes/documento/${encodeURIComponent(lookupDocumento)}`, {
@@ -467,7 +497,12 @@ document.getElementById("delete-student-btn").addEventListener("click", async ()
   }
 
   await runWithConfirmation(
-    `Vas a eliminar el estudiante con documento "${lookupDocumento}". Esta accion no se puede deshacer.`,
+    "Se va a eliminar este estudiante. ¿Estas seguro de que deseas continuar?",
+    {
+      documento: lookupDocumento,
+      nombre: studentForm.elements.nombre.value,
+      placa: studentForm.elements.placa.value,
+    },
     async () => {
       try {
         const data = await apiFetch(`/admin/estudiantes/documento/${encodeURIComponent(lookupDocumento)}`, {

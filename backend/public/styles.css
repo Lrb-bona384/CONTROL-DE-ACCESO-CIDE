@@ -227,6 +227,18 @@ button.full {
   color: var(--muted);
 }
 
+.modal-details {
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(215, 199, 178, 0.9);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 @media (max-width: 980px) {
   .card,
   .card.wide {
