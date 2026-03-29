@@ -33,6 +33,7 @@ const movementsMeta = document.getElementById("movements-meta");
 
 let authToken = localStorage.getItem("access_token") || "";
 let currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
+const loginForm = document.getElementById("login-form");
 const userForm = document.getElementById("user-form");
 const studentForm = document.getElementById("student-form");
 let selectedUsername = "";
@@ -82,18 +83,25 @@ function syncRoleVisibility() {
   const role = currentUser?.role || "";
   const isAdmin = role === "ADMIN";
   const isGuard = role === "GUARDA";
+  const isConsulta = role === "CONSULTA";
   const isAuthenticated = Boolean(authToken);
+  const canOperate = isAdmin || isGuard;
+  const canRead = isAuthenticated && (isAdmin || isGuard || isConsulta);
 
   document.querySelectorAll(".role-admin-only").forEach((panel) => {
     panel.hidden = !isAdmin;
   });
 
   document.querySelectorAll(".role-admin-guard").forEach((panel) => {
-    panel.classList.toggle("panel-locked", !isAdmin && !isGuard);
+    panel.hidden = !canOperate;
+  });
+
+  document.querySelectorAll(".role-read-only").forEach((panel) => {
+    panel.hidden = !canRead;
   });
 
   document.querySelectorAll(".role-authenticated").forEach((panel) => {
-    panel.classList.toggle("panel-locked", !isAuthenticated);
+    panel.hidden = !isAuthenticated;
   });
 
   document.querySelectorAll("#update-user-btn, #delete-user-btn, #users-btn, [data-user-action=\"edit\"], [data-user-action=\"delete\"]")
@@ -108,27 +116,32 @@ function syncRoleVisibility() {
 
   const studentSubmit = studentForm.querySelector("button[type=\"submit\"]");
   if (studentSubmit) {
-    studentSubmit.disabled = !(isAdmin || isGuard);
+    studentSubmit.disabled = !canOperate;
   }
 
   const searchStudentButton = document.getElementById("search-student-btn");
   if (searchStudentButton) {
-    searchStudentButton.disabled = !(isAdmin || isGuard);
+    searchStudentButton.disabled = !canOperate;
   }
 
   const movementSubmit = document.querySelector("#movement-form button[type=\"submit\"]");
   if (movementSubmit) {
-    movementSubmit.disabled = !isAuthenticated;
+    movementSubmit.disabled = !canOperate;
   }
 
   const insideButton = document.getElementById("inside-btn");
   if (insideButton) {
-    insideButton.disabled = !(isAdmin || isGuard);
+    insideButton.disabled = !canRead;
+  }
+
+  const studentsButton = document.getElementById("students-btn");
+  if (studentsButton) {
+    studentsButton.disabled = !canRead;
   }
 
   const movementsButton = document.getElementById("movements-btn");
   if (movementsButton) {
-    movementsButton.disabled = !isAuthenticated;
+    movementsButton.disabled = !canRead;
   }
 }
 
@@ -184,7 +197,7 @@ function requireAuth(actionLabel) {
     "Sesion requerida",
     {
       error: `Debes iniciar sesion antes de ${actionLabel}.`,
-      hint: "Usa admin / Admin123! o guarda / Guarda123! en el bloque Login.",
+      hint: "Usa admin, guarda o consulta en el bloque Login segun el acceso que necesites.",
     },
     true
   );
@@ -222,6 +235,20 @@ function ensureAdminOrGuard(actionLabel) {
     true
   );
   showAlert("warn", "Permiso insuficiente", `Solo ADMIN o GUARDA puede ${actionLabel}.`);
+  return false;
+}
+
+function ensureReadAccess(actionLabel) {
+  if (!requireAuth(actionLabel)) return false;
+
+  if (currentUser && ["ADMIN", "GUARDA", "CONSULTA"].includes(currentUser.role)) return true;
+
+  printResult(
+    "Permiso insuficiente",
+    { error: `No tienes permisos para ${actionLabel}.` },
+    true
+  );
+  showAlert("warn", "Permiso insuficiente", `No tienes permisos para ${actionLabel}.`);
   return false;
 }
 
@@ -356,6 +383,21 @@ function resetStudentSelection() {
   selectedStudentDocumento = "";
   setStudentNextStep("Busca por documento o placa. Si lo encontramos, cargaremos el formulario para editarlo o verificarlo.");
   refreshDashboard();
+}
+
+function resetCachedData() {
+  cachedUsers = [];
+  cachedStudents = [];
+  cachedInsideCampus = [];
+  cachedMovements = [];
+}
+
+function clearSessionState() {
+  authToken = "";
+  currentUser = null;
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("auth_user");
+  resetCachedData();
 }
 
 function escapeHtml(value) {
@@ -614,6 +656,46 @@ async function refreshMovementsTableData({ silent = false } = {}) {
   }
 }
 
+async function loadOperationalSnapshot() {
+  if (!authToken || !currentUser) return;
+
+  const loaders = [];
+
+  if (currentUser.role === "ADMIN") {
+    loaders.push(refreshUsersTableData({ silent: true }));
+  }
+
+  if (["ADMIN", "GUARDA", "CONSULTA"].includes(currentUser.role)) {
+    loaders.push(refreshStudentsTableData({ silent: true }));
+    loaders.push(refreshInsideCampusTableData({ silent: true }));
+    loaders.push(refreshMovementsTableData({ silent: true }));
+  }
+
+  await Promise.all(loaders);
+}
+
+async function bootstrapSession() {
+  if (!authToken) {
+    refreshSessionUI();
+    return;
+  }
+
+  try {
+    const profile = await apiFetch("/auth/me");
+    currentUser = profile;
+    localStorage.setItem("auth_user", JSON.stringify(currentUser));
+    refreshSessionUI();
+    await loadOperationalSnapshot();
+  } catch (_) {
+    clearSessionState();
+    refreshSessionUI();
+    renderEmptyState(usersTableWrap, usersMeta, "Carga el listado de usuarios para ver acciones por fila.");
+    renderEmptyState(studentsTableWrap, studentsMeta, "Carga el listado de estudiantes para ver acciones por fila.");
+    renderEmptyState(insideTableWrap, insideMeta, "Consulta dentro del campus para ver el estado en una tabla.");
+    renderEmptyState(movementsTableWrap, movementsMeta, "Consulta movimientos para ver entradas y salidas recientes.");
+  }
+}
+
 function formatConfirmDetails(details) {
   if (!details) return "";
 
@@ -683,7 +765,7 @@ async function apiFetch(url, options = {}) {
   return data;
 }
 
-document.getElementById("login-form").addEventListener("submit", async (event) => {
+loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(event.currentTarget);
 
@@ -701,7 +783,7 @@ document.getElementById("login-form").addEventListener("submit", async (event) =
     localStorage.setItem("access_token", authToken);
     localStorage.setItem("auth_user", JSON.stringify(currentUser));
     refreshSessionUI();
-    await refreshMovementsTableData({ silent: true });
+    await loadOperationalSnapshot();
     printResult("Login exitoso", data);
     showAlert("success", "Sesion iniciada", `Bienvenido, ${data.user.username}.`);
   } catch (error) {
@@ -722,14 +804,8 @@ document.getElementById("profile-btn").addEventListener("click", async () => {
 });
 
 document.getElementById("logout-btn").addEventListener("click", () => {
-  authToken = "";
-  currentUser = null;
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("auth_user");
-  cachedUsers = [];
-  cachedStudents = [];
-  cachedInsideCampus = [];
-  cachedMovements = [];
+  clearSessionState();
+  loginForm.reset();
   refreshSessionUI();
   resetUserSelection();
   resetStudentSelection();
@@ -885,7 +961,7 @@ document.getElementById("delete-user-btn").addEventListener("click", async () =>
 
 document.getElementById("student-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!requireAuth("registrar estudiantes")) return;
+  if (!ensureAdminOrGuard("registrar estudiantes")) return;
 
   const form = event.currentTarget;
   const formData = new FormData(form);
@@ -942,8 +1018,8 @@ document.getElementById("search-student-btn").addEventListener("click", async ()
 
   try {
     const data = shouldSearchByDocumento
-      ? await apiFetch(`/admin/estudiantes/documento/${encodeURIComponent(lookupDocumento)}`)
-      : await apiFetch(`/admin/estudiantes/placa/${encodeURIComponent(lookupPlaca)}`);
+      ? await apiFetch(`/estudiantes/documento/${encodeURIComponent(lookupDocumento)}`)
+      : await apiFetch(`/estudiantes/placa/${encodeURIComponent(lookupPlaca)}`);
 
     fillStudentForm(data);
     printResult("Estudiante encontrado", data);
@@ -1069,7 +1145,7 @@ studentSearchMode.addEventListener("click", (event) => {
 
 document.getElementById("document-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!requireAuth("consultar estudiantes")) return;
+  if (!ensureReadAccess("consultar estudiantes")) return;
 
   const formData = new FormData(event.currentTarget);
 
@@ -1085,7 +1161,7 @@ document.getElementById("document-form").addEventListener("submit", async (event
 
 document.getElementById("movement-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!requireAuth("registrar movimientos")) return;
+  if (!ensureAdminOrGuard("registrar movimientos")) return;
 
   const formData = new FormData(event.currentTarget);
 
@@ -1107,17 +1183,17 @@ document.getElementById("movement-form").addEventListener("submit", async (event
 });
 
 document.getElementById("inside-btn").addEventListener("click", async () => {
-  if (!requireAuth("consultar estudiantes dentro del campus")) return;
+  if (!ensureReadAccess("consultar estudiantes dentro del campus")) return;
   await refreshInsideCampusTableData();
 });
 
 document.getElementById("students-btn").addEventListener("click", async () => {
-  if (!requireAuth("listar estudiantes")) return;
+  if (!ensureReadAccess("listar estudiantes")) return;
   await refreshStudentsTableData();
 });
 
 document.getElementById("movements-btn").addEventListener("click", async () => {
-  if (!requireAuth("consultar movimientos recientes")) return;
+  if (!ensureReadAccess("consultar movimientos recientes")) return;
   await refreshMovementsTableData();
 });
 
@@ -1139,17 +1215,24 @@ usersTableWrap.addEventListener("click", async (event) => {
   }
 });
 
-function loadStudentIntoForm(documento, intent = "view") {
-  studentForm.elements.lookup_documento.value = documento;
-  studentForm.elements.lookup_placa.value = "";
-  document.getElementById("search-student-btn").click();
+async function loadStudentIntoForm(documento, intent = "view") {
+  try {
+    const data = await apiFetch(`/estudiantes/documento/${encodeURIComponent(documento)}`);
+    fillStudentForm(data);
+    printResult("Estudiante encontrado", data);
 
-  if (intent === "edit") {
-    studentForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (intent === "edit" && currentUser && ["ADMIN", "GUARDA"].includes(currentUser.role)) {
+      studentForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    showAlert("info", "Estudiante encontrado", `Se cargaron los datos de ${data.nombre}.`);
+  } catch (error) {
+    printResult("Error consultando estudiante", error, true);
+    showAlert("error", "No se pudo cargar el estudiante", normalizeErrorPayload(error).error || "Verifica el documento.");
   }
 }
 
-studentsTableWrap.addEventListener("click", (event) => {
+studentsTableWrap.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-student-action]");
   if (!button) return;
 
@@ -1157,7 +1240,7 @@ studentsTableWrap.addEventListener("click", (event) => {
   const documento = button.dataset.documento;
 
   if (action === "view" || action === "edit") {
-    loadStudentIntoForm(documento, action);
+    await loadStudentIntoForm(documento, action);
     return;
   }
 
@@ -1170,7 +1253,7 @@ studentsTableWrap.addEventListener("click", (event) => {
   }
 });
 
-insideTableWrap.addEventListener("click", (event) => {
+insideTableWrap.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-student-action]");
   if (!button) return;
 
@@ -1186,7 +1269,7 @@ insideTableWrap.addEventListener("click", (event) => {
     return;
   }
 
-  loadStudentIntoForm(documento, action);
+  await loadStudentIntoForm(documento, action);
 });
 
 document.getElementById("clear-output").addEventListener("click", () => {
@@ -1200,4 +1283,5 @@ renderEmptyState(insideTableWrap, insideMeta, "Consulta dentro del campus para v
 renderEmptyState(movementsTableWrap, movementsMeta, "Consulta movimientos para ver entradas y salidas recientes.");
 
 updateStudentSearchMode("documento");
-refreshSessionUI();
+bootstrapSession();
+

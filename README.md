@@ -127,12 +127,13 @@ Todas las rutas protegidas requieren `Authorization: Bearer <token>`.
 - `GET /estudiantes` (`ADMIN`, `GUARDA`, `CONSULTA`)
 - `GET /estudiantes/:id` (`ADMIN`, `GUARDA`, `CONSULTA`)
 - `GET /estudiantes/documento/:documento` (`ADMIN`, `GUARDA`, `CONSULTA`)
+- `GET /estudiantes/placa/:placa` (`ADMIN`, `GUARDA`, `CONSULTA`)
 
 ### Movimientos
 - `POST /movimientos/registrar` (`ADMIN` o `GUARDA`)
 - `GET /movimientos` (`ADMIN`, `GUARDA`, `CONSULTA`)
 - `GET /movimientos/estudiante/:id` (`ADMIN`, `GUARDA`, `CONSULTA`)
-- `GET /movimientos/dentro-campus` (`ADMIN` o `GUARDA`)
+- `GET /movimientos/dentro-campus` (`ADMIN`, `GUARDA`, `CONSULTA`)
 
 ### Admin
 - `GET /admin/reportes` (`ADMIN`)

@@ -28,9 +28,9 @@
         </div>
         <nav class="site-nav" aria-label="Secciones principales">
           <a href="#login-panel">Acceso</a>
-          <a href="#usuarios-panel">Usuarios</a>
-          <a href="#estudiantes-panel">Estudiantes</a>
-          <a href="#monitoreo-panel">Monitoreo</a>
+          <a href="#usuarios-panel" class="role-admin-only">Usuarios</a>
+          <a href="#estudiantes-panel" class="role-admin-guard">Estudiantes</a>
+          <a href="#monitoreo-panel" class="role-read-only">Monitoreo</a>
         </nav>
       </div>
     </header>
@@ -111,14 +111,14 @@
     <section class="grid">
       <article id="login-panel" class="card accent">
         <h2>Login</h2>
-        <form id="login-form" class="form-stack">
+        <form id="login-form" class="form-stack" autocomplete="off">
           <label>
             Usuario
-            <input name="username" type="text" placeholder="admin" required>
+            <input name="username" type="text" autocomplete="off" spellcheck="false" required>
           </label>
           <label>
             Password
-            <input name="password" type="password" placeholder="Admin123!" required>
+            <input name="password" type="password" autocomplete="new-password" required>
           </label>
           <button type="submit">Iniciar sesion</button>
         </form>
@@ -270,7 +270,7 @@
         </form>
       </article>
 
-      <article class="card">
+      <article class="card role-admin-guard">
         <h2>Registrar movimiento</h2>
         <form id="movement-form" class="form-stack">
           <label>
@@ -281,7 +281,7 @@
         </form>
       </article>
 
-      <article id="monitoreo-panel" class="card role-authenticated">
+      <article id="monitoreo-panel" class="card role-read-only">
         <h2>Monitoreo</h2>
         <div class="button-row">
           <button id="inside-btn" type="button">Ver dentro del campus</button>
@@ -292,7 +292,7 @@
     </section>
 
     <section class="grid data-grid">
-      <article class="card wide">
+      <article class="card wide role-admin-only">
         <div class="section-head">
           <div>
             <p class="eyebrow">Panel operativo</p>
@@ -305,7 +305,7 @@
         </div>
       </article>
 
-      <article class="card wide">
+      <article class="card wide role-read-only">
         <div class="section-head">
           <div>
             <p class="eyebrow">Panel operativo</p>
@@ -318,7 +318,7 @@
         </div>
       </article>
 
-      <article class="card wide">
+      <article class="card wide role-read-only">
         <div class="section-head">
           <div>
             <p class="eyebrow">Monitoreo vivo</p>
@@ -331,7 +331,7 @@
         </div>
       </article>
 
-      <article class="card wide">
+      <article class="card wide role-read-only">
         <div class="section-head">
           <div>
             <p class="eyebrow">Actividad reciente</p>
