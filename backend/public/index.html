@@ -11,6 +11,43 @@
 </head>
 <body>
   <div id="alerts" class="alerts" aria-live="polite" aria-atomic="true"></div>
+  <section class="auth-shell">
+    <div class="auth-backdrop"></div>
+    <div class="auth-panel">
+      <div class="auth-brand">
+        <p class="eyebrow auth-eyebrow">Portal institucional</p>
+        <h1 class="auth-wordmark">CIDE</h1>
+        <p class="auth-submark">Control de Acceso QR</p>
+      </div>
+      <div class="auth-card">
+        <div class="auth-card-head">
+          <p class="eyebrow auth-eyebrow">Acceso seguro</p>
+          <h2>Iniciar sesion</h2>
+          <p class="auth-copy">
+            Ingresa con tu usuario del sistema. Una vez autenticado, la plataforma cargara automaticamente el flujo segun tu rol.
+          </p>
+        </div>
+        <form id="login-form" class="form-stack auth-form" autocomplete="off">
+          <label>
+            Usuario
+            <input name="username" type="text" autocomplete="off" spellcheck="false" required>
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="new-password" required>
+          </label>
+          <button type="submit">Iniciar sesion</button>
+        </form>
+        <div class="auth-divider"><span>portal interno</span></div>
+        <div class="auth-help compact">
+          <p class="login-note">
+            Usa tus credenciales institucionales del sistema. El acceso visible dependera del rol autenticado.
+          </p>
+        </div>
+      </div>
+      <p class="auth-footer-copy">Corporacion Internacional para el Desarrollo Educativo</p>
+    </div>
+  </section>
   <main class="app-shell">
     <header class="site-header">
       <div class="site-topline">
@@ -27,7 +64,7 @@
           <p class="submark">Institucion de Educacion Superior</p>
         </div>
         <nav class="site-nav" aria-label="Secciones principales">
-          <a href="#login-panel">Acceso</a>
+          <a href="#session-panel">Sesion</a>
           <a href="#usuarios-panel" class="role-admin-only">Usuarios</a>
           <a href="#estudiantes-panel" class="role-admin-guard">Estudiantes</a>
           <a href="#monitoreo-panel" class="role-read-only">Monitoreo</a>
@@ -114,26 +151,21 @@
           </p>
         </article>
       </div>
+      <div class="quick-actions">
+        <p class="eyebrow">Siguiente accion recomendada</p>
+        <div id="dashboard-actions" class="quick-action-list">
+          <span class="quick-action-chip">Inicia sesion para activar el tablero</span>
+        </div>
+      </div>
     </section>
 
     <section class="grid">
-      <article id="login-panel" class="card accent">
-        <h2>Login</h2>
-        <form id="login-form" class="form-stack" autocomplete="off">
-          <label>
-            Usuario
-            <input name="username" type="text" autocomplete="off" spellcheck="false" required>
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" autocomplete="new-password" required>
-          </label>
-          <button type="submit">Iniciar sesion</button>
-        </form>
-      </article>
-
-      <article id="profile-panel" class="card">
+      <article id="session-panel" class="card accent role-authenticated">
+        <p class="eyebrow">Identidad activa</p>
         <h2>Perfil</h2>
+        <p class="card-intro">
+          Desde aqui puedes validar rapidamente quien esta autenticado y con que alcance esta operando.
+        </p>
         <div class="button-row">
           <button id="profile-btn" type="button">Ver /auth/me</button>
           <button id="logout-btn" type="button" class="ghost">Cerrar sesion</button>
@@ -144,6 +176,24 @@
           <div id="role-badges" class="role-badges">
             <span class="role-pill muted">Sin rol</span>
           </div>
+        </div>
+        <div class="session-grid">
+          <article class="session-tile">
+            <span class="status-label">Estado</span>
+            <strong id="session-state-pill" class="session-pill inactive">Sin sesion</strong>
+          </article>
+          <article class="session-tile">
+            <span class="status-label">Usuario activo</span>
+            <strong id="session-user-chip" class="session-detail">Sin autenticar</strong>
+          </article>
+          <article class="session-tile">
+            <span class="status-label">Rol operativo</span>
+            <strong id="session-role-chip" class="session-detail">Sin rol</strong>
+          </article>
+          <article class="session-tile">
+            <span class="status-label">Acceso visible</span>
+            <strong id="session-access-chip" class="session-detail">Solo portada</strong>
+          </article>
         </div>
       </article>
 
@@ -325,8 +375,21 @@
           <div>
             <p class="eyebrow">Monitoreo vivo</p>
             <h2>Dentro del campus</h2>
+            <p class="section-copy">
+              Vista rapida para porteria y control operativo. Prioriza nombre, documento, placa y hora del ultimo ingreso.
+            </p>
           </div>
           <span id="inside-meta" class="table-meta">Sin cargar</span>
+        </div>
+        <div class="campus-summary">
+          <article class="campus-summary-card">
+            <span class="status-label">Presencia activa</span>
+            <strong id="inside-count-card" class="campus-summary-value">0</strong>
+          </article>
+          <article class="campus-summary-card">
+            <span class="status-label">Ultimo ingreso visible</span>
+            <strong id="inside-latest-card" class="campus-summary-detail">Sin datos</strong>
+          </article>
         </div>
         <div id="inside-table-wrap" class="table-wrap empty-state">
           Consulta dentro del campus para ver el estado en una tabla.
@@ -405,6 +468,7 @@
   <script src="/app.js"></script>
 </body>
 </html>
+
 
 
 
