@@ -222,6 +222,12 @@ button.full {
   background: rgba(255, 255, 255, 0.55);
 }
 
+.table-hint {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .history-type {
   display: inline-flex;
   padding: 6px 10px;
@@ -238,6 +244,35 @@ button.full {
 }
 
 .history-type.salida {
+  color: #9c2f2f;
+  background: rgba(156, 47, 47, 0.12);
+}
+
+.role-pill,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.role-pill {
+  color: #1a1712;
+  background: rgba(102, 93, 82, 0.12);
+}
+
+.status-pill.active {
+  color: #0f6c5d;
+  background: rgba(15, 108, 93, 0.12);
+}
+
+.status-pill.inactive {
   color: #9c2f2f;
   background: rgba(156, 47, 47, 0.12);
 }

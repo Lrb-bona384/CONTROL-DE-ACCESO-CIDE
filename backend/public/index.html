@@ -158,6 +158,7 @@
         </div>
       </div>
       <div id="history-empty" class="history-empty">Aun no hay movimientos para mostrar.</div>
+      <p class="table-hint">Desliza horizontalmente para revisar todas las columnas en pantallas pequenas.</p>
       <div class="history-table-wrap">
         <table id="history-table" class="history-table hidden">
           <thead>
@@ -173,6 +174,70 @@
             </tr>
           </thead>
           <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="users-panel" class="card history-card hidden">
+      <div class="output-head">
+        <div>
+          <p class="eyebrow">Administracion</p>
+          <h2>Usuarios del sistema</h2>
+        </div>
+        <div class="button-row">
+          <button id="users-refresh-btn" type="button">Actualizar</button>
+          <button id="users-close-btn" type="button" class="ghost">Cerrar vista</button>
+        </div>
+      </div>
+      <div id="users-empty" class="history-empty">No hay usuarios para mostrar todavia.</div>
+      <p class="table-hint">Desliza horizontalmente para revisar rol, fechas y responsables desde movil.</p>
+      <div class="history-table-wrap">
+        <table id="users-table" class="history-table hidden">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Rol</th>
+              <th>Creado</th>
+              <th>Actualizado</th>
+              <th>Creado por</th>
+              <th>Actualizado por</th>
+            </tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="students-panel" class="card history-card hidden">
+      <div class="output-head">
+        <div>
+          <p class="eyebrow">Operacion academica</p>
+          <h2>Estudiantes registrados</h2>
+        </div>
+        <div class="button-row">
+          <button id="students-refresh-btn" type="button">Actualizar</button>
+          <button id="students-close-btn" type="button" class="ghost">Cerrar vista</button>
+        </div>
+      </div>
+      <div id="students-empty" class="history-empty">Aun no hay estudiantes registrados para mostrar.</div>
+      <p class="table-hint">Desliza horizontalmente para ver QR, moto y vigencia sin perder el contexto.</p>
+      <div class="history-table-wrap">
+        <table id="students-table" class="history-table hidden">
+          <thead>
+            <tr>
+              <th>Documento</th>
+              <th>Nombre</th>
+              <th>Carrera</th>
+              <th>QR UID</th>
+              <th>Vigencia</th>
+              <th>Placa</th>
+              <th>Color</th>
+              <th>Creado</th>
+              <th>Actualizado</th>
+            </tr>
+          </thead>
+          <tbody id="students-body"></tbody>
         </table>
       </div>
     </section>

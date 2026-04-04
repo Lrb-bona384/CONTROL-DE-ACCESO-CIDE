@@ -8,11 +8,21 @@ const historyEmpty = document.getElementById("history-empty");
 const historyButton = document.getElementById("history-btn");
 const historyRefreshButton = document.getElementById("history-refresh-btn");
 const historyDownloadButton = document.getElementById("history-download-btn");
+const usersPanel = document.getElementById("users-panel");
+const usersTable = document.getElementById("users-table");
+const usersBody = document.getElementById("users-body");
+const usersEmpty = document.getElementById("users-empty");
+const studentsPanel = document.getElementById("students-panel");
+const studentsTable = document.getElementById("students-table");
+const studentsBody = document.getElementById("students-body");
+const studentsEmpty = document.getElementById("students-empty");
 
 let authToken = localStorage.getItem("access_token") || "";
 let currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
 let historyAutoRefreshId = null;
 let currentAuditRows = [];
+let currentUserRows = [];
+let currentStudentRows = [];
 
 function refreshSessionUI() {
   sessionRole.textContent = currentUser ? `${currentUser.username} / ${currentUser.role}` : "Sin iniciar";
@@ -55,6 +65,14 @@ function hideHistoryPanel() {
   stopHistoryAutoRefresh();
 }
 
+function hideUsersPanel() {
+  usersPanel.classList.add("hidden");
+}
+
+function hideStudentsPanel() {
+  studentsPanel.classList.add("hidden");
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -73,6 +91,17 @@ function updateHistoryActions() {
   const isAdmin = currentUser?.role === "ADMIN";
   historyDownloadButton.classList.toggle("hidden", !isAdmin);
   historyDownloadButton.disabled = !currentAuditRows.length;
+}
+
+function formatDateLabel(value) {
+  const { fecha, hora } = formatDateTime(value);
+  return fecha === "-" ? "-" : `${fecha} ${hora}`;
+}
+
+function renderEmptyTableState({ panel, table, empty, hasRows }) {
+  panel.classList.remove("hidden");
+  table.classList.toggle("hidden", !hasRows);
+  empty.classList.toggle("hidden", hasRows);
 }
 
 function isHistoryVisible() {
@@ -110,9 +139,12 @@ function renderHistory(registros = []) {
   updateHistoryActions();
 
   if (!registros.length) {
-    historyEmpty.classList.remove("hidden");
-    historyTable.classList.add("hidden");
-    historyPanel.classList.remove("hidden");
+    renderEmptyTableState({
+      panel: historyPanel,
+      table: historyTable,
+      empty: historyEmpty,
+      hasRows: false,
+    });
     return;
   }
 
@@ -137,10 +169,95 @@ function renderHistory(registros = []) {
   });
 
   historyBody.append(...rows);
-  historyEmpty.classList.add("hidden");
-  historyTable.classList.remove("hidden");
-  historyPanel.classList.remove("hidden");
+  renderEmptyTableState({
+    panel: historyPanel,
+    table: historyTable,
+    empty: historyEmpty,
+    hasRows: true,
+  });
   startHistoryAutoRefresh();
+}
+
+function renderUsers(rows = []) {
+  currentUserRows = rows;
+  usersBody.innerHTML = "";
+
+  if (!rows.length) {
+    renderEmptyTableState({
+      panel: usersPanel,
+      table: usersTable,
+      empty: usersEmpty,
+      hasRows: false,
+    });
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  rows.forEach((user) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(user.id ?? "-")}</td>
+      <td>${escapeHtml(user.username || "-")}</td>
+      <td><span class="role-pill">${escapeHtml(user.role || "-")}</span></td>
+      <td>${escapeHtml(formatDateLabel(user.created_at))}</td>
+      <td>${escapeHtml(formatDateLabel(user.updated_at))}</td>
+      <td>${escapeHtml(user.created_by ?? "-")}</td>
+      <td>${escapeHtml(user.updated_by ?? "-")}</td>
+    `;
+    fragment.appendChild(tr);
+  });
+
+  usersBody.appendChild(fragment);
+  renderEmptyTableState({
+    panel: usersPanel,
+    table: usersTable,
+    empty: usersEmpty,
+    hasRows: true,
+  });
+}
+
+function renderStudents(rows = []) {
+  currentStudentRows = rows;
+  studentsBody.innerHTML = "";
+
+  if (!rows.length) {
+    renderEmptyTableState({
+      panel: studentsPanel,
+      table: studentsTable,
+      empty: studentsEmpty,
+      hasRows: false,
+    });
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  rows.forEach((student) => {
+    const tr = document.createElement("tr");
+    const vigencia = student.vigencia ? "Vigente" : "No vigente";
+    const vigenciaClass = student.vigencia ? "active" : "inactive";
+    tr.innerHTML = `
+      <td>${escapeHtml(student.documento || "-")}</td>
+      <td>${escapeHtml(student.nombre || "-")}</td>
+      <td>${escapeHtml(student.carrera || "-")}</td>
+      <td>${escapeHtml(student.qr_uid || "-")}</td>
+      <td><span class="status-pill ${vigenciaClass}">${escapeHtml(vigencia)}</span></td>
+      <td>${escapeHtml(student.placa || "-")}</td>
+      <td>${escapeHtml(student.color || "-")}</td>
+      <td>${escapeHtml(formatDateLabel(student.created_at))}</td>
+      <td>${escapeHtml(formatDateLabel(student.updated_at))}</td>
+    `;
+    fragment.appendChild(tr);
+  });
+
+  studentsBody.appendChild(fragment);
+  renderEmptyTableState({
+    panel: studentsPanel,
+    table: studentsTable,
+    empty: studentsEmpty,
+    hasRows: true,
+  });
 }
 
 function requireAuth(actionLabel) {
@@ -258,6 +375,32 @@ async function loadHistory() {
   }
 }
 
+async function loadUsers() {
+  if (!requireAuth("listar usuarios")) return;
+
+  try {
+    const data = await apiFetch("/admin/usuarios");
+    renderUsers(data.usuarios || []);
+    printResult("Usuarios del sistema", { count: data.count });
+  } catch (error) {
+    hideUsersPanel();
+    printResult("Error listando usuarios", error, true);
+  }
+}
+
+async function loadStudents() {
+  if (!requireAuth("listar estudiantes")) return;
+
+  try {
+    const data = await apiFetch("/estudiantes");
+    renderStudents(data.estudiantes || []);
+    printResult("Listado de estudiantes", { count: data.count });
+  } catch (error) {
+    hideStudentsPanel();
+    printResult("Error listando estudiantes", error, true);
+  }
+}
+
 document.getElementById("login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(event.currentTarget);
@@ -327,14 +470,7 @@ document.getElementById("user-form").addEventListener("submit", async (event) =>
 });
 
 document.getElementById("users-btn").addEventListener("click", async () => {
-  if (!requireAuth("listar usuarios")) return;
-
-  try {
-    const data = await apiFetch("/admin/usuarios");
-    printResult("Usuarios del sistema", data);
-  } catch (error) {
-    printResult("Error listando usuarios", error, true);
-  }
+  await loadUsers();
 });
 
 document.getElementById("student-form").addEventListener("submit", async (event) => {
@@ -417,14 +553,7 @@ document.getElementById("history-btn").addEventListener("click", async () => {
 });
 
 document.getElementById("students-btn").addEventListener("click", async () => {
-  if (!requireAuth("listar estudiantes")) return;
-
-  try {
-    const data = await apiFetch("/estudiantes");
-    printResult("Listado de estudiantes", data);
-  } catch (error) {
-    printResult("Error listando estudiantes", error, true);
-  }
+  await loadStudents();
 });
 
 document.getElementById("clear-output").addEventListener("click", () => {
@@ -443,6 +572,24 @@ historyDownloadButton.addEventListener("click", () => {
   downloadAuditCsv();
 });
 
+document.getElementById("users-refresh-btn").addEventListener("click", async () => {
+  await loadUsers();
+});
+
+document.getElementById("users-close-btn").addEventListener("click", () => {
+  hideUsersPanel();
+});
+
+document.getElementById("students-refresh-btn").addEventListener("click", async () => {
+  await loadStudents();
+});
+
+document.getElementById("students-close-btn").addEventListener("click", () => {
+  hideStudentsPanel();
+});
+
 refreshSessionUI();
 updateHistoryActions();
 hideHistoryPanel();
+hideUsersPanel();
+hideStudentsPanel();
