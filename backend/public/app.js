@@ -37,6 +37,8 @@ const insideMeta = document.getElementById("inside-meta");
 const movementsMeta = document.getElementById("movements-meta");
 const insideCountCard = document.getElementById("inside-count-card");
 const insideLatestCard = document.getElementById("inside-latest-card");
+const movementsCountCard = document.getElementById("movements-count-card");
+const movementsLastCard = document.getElementById("movements-last-card");
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "scroll", "touchstart"];
 
@@ -520,6 +522,10 @@ function renderEmptyState(target, metaTarget, message, meta = "Sin cargar") {
     insideCountCard.textContent = "0";
     insideLatestCard.textContent = "Sin datos";
   }
+  if (target === movementsTableWrap) {
+    movementsCountCard.textContent = "0";
+    movementsLastCard.textContent = "Sin datos";
+  }
   syncRoleVisibility();
   refreshDashboard();
 }
@@ -568,6 +574,10 @@ function renderUsersTable(users = []) {
 
 function renderMovementsTable(movements = []) {
   cachedMovements = movements;
+  movementsCountCard.textContent = String(movements.length || 0);
+  movementsLastCard.textContent = movements.length
+    ? `${movements[0].tipo || "ENTRADA"} - ${movements[0].nombre || movements[0].documento || "Registro"}`
+    : "Sin datos";
 
   if (!movements.length) {
     renderEmptyState(movementsTableWrap, movementsMeta, "No hay movimientos recientes para mostrar.", "0 movimientos");
@@ -582,7 +592,6 @@ function renderMovementsTable(movements = []) {
         <tr>
           <th>Tipo</th>
           <th>Estudiante</th>
-          <th>Documento</th>
           <th>Placa</th>
           <th>Fecha</th>
         </tr>
@@ -591,10 +600,18 @@ function renderMovementsTable(movements = []) {
         ${movements.map((movement) => `
           <tr>
             <td><span class="badge ${movement.tipo === "SALIDA" ? "exit" : "success"}">${escapeHtml(movement.tipo || "N/D")}</span></td>
-            <td>${escapeHtml(movement.nombre || "N/D")}</td>
-            <td>${escapeHtml(movement.documento || "N/D")}</td>
-            <td>${escapeHtml(movement.placa || "N/D")}</td>
-            <td>${escapeHtml(movement.fecha || movement.fecha_hora || "N/D")}</td>
+            <td>
+              <div class="movement-cell-strong">
+                <span class="movement-main">${escapeHtml(movement.nombre || "N/D")}</span>
+                <span class="movement-sub">Doc ${escapeHtml(movement.documento || "N/D")}</span>
+              </div>
+            </td>
+            <td><span class="movement-plate">${escapeHtml(movement.placa || "N/D")}</span></td>
+            <td>
+              <div class="movement-meta-stack">
+                <span class="movement-time">${escapeHtml(movement.fecha || movement.fecha_hora || "N/D")}</span>
+              </div>
+            </td>
           </tr>
         `).join("")}
       </tbody>
@@ -770,6 +787,58 @@ async function refreshMovementsTableData({ silent = false } = {}) {
   }
 }
 
+async function loadOperationalSnapshot() {
+  if (!authToken || !currentUser) return;
+
+  const loaders = [refreshMovementsTableData({ silent: true })];
+
+  if (currentUser.role === "ADMIN") {
+    loaders.push(refreshUsersTableData({ silent: true }));
+  }
+
+  if (["ADMIN", "GUARDA", "CONSULTA"].includes(currentUser.role)) {
+    loaders.push(refreshStudentsTableData({ silent: true }));
+    loaders.push(refreshInsideCampusTableData({ silent: true }));
+  }
+
+  await Promise.all(loaders);
+}
+
+async function bootstrapSession() {
+  if (!authToken) {
+    refreshSessionUI();
+    return;
+  }
+
+  refreshSessionUI();
+  scheduleInactivityLogout();
+
+  try {
+    const profile = await apiFetch("/auth/me");
+    currentUser = profile;
+    persistAuthState();
+    refreshSessionUI();
+    scheduleInactivityLogout();
+    await loadOperationalSnapshot();
+  } catch (error) {
+    if (error?.status === 401 || error?.status === 403) {
+      clearAuthState();
+      authToken = "";
+      currentUser = null;
+      clearInactivityTimer();
+      refreshSessionUI();
+      resetOperationalTables();
+      return;
+    }
+
+    printResult("Sesion en verificacion", {
+      warning: "No se pudo revalidar la sesion al recargar, pero la mantendremos mientras se restablece la conexion.",
+      detalle: normalizeErrorPayload(error),
+    });
+    showAlert("warn", "Sesion pendiente de verificacion", "La sesion se mantuvo. Intenta usar el sistema nuevamente en unos segundos.");
+  }
+}
+
 function formatConfirmDetails(details) {
   if (!details) return "";
 
@@ -857,7 +926,7 @@ document.getElementById("login-form").addEventListener("submit", async (event) =
     persistAuthState();
     refreshSessionUI();
     scheduleInactivityLogout();
-    await refreshMovementsTableData({ silent: true });
+    await loadOperationalSnapshot();
     printResult("Login exitoso", data);
     showAlert("success", "Sesion iniciada", `Bienvenido, ${data.user.username}.`);
   } catch (error) {
@@ -1344,6 +1413,5 @@ renderEmptyState(insideTableWrap, insideMeta, "Consulta dentro del campus para v
 renderEmptyState(movementsTableWrap, movementsMeta, "Consulta movimientos para ver entradas y salidas recientes.");
 
 updateStudentSearchMode("documento");
-refreshSessionUI();
-scheduleInactivityLogout();
+bootstrapSession();
 
