@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 const app = express();
 
 require('dotenv').config();
@@ -14,9 +15,11 @@ const movimientosRoutes = require("./routes/movimientos.routes");
 const adminRoutes = require("./routes/admin.routes");
 
 const PORT = Number(process.env.PORT || 3000);
+const legacyPublicDir = path.join(__dirname, "public");
+const frontendDistDir = path.resolve(__dirname, "../frontend/dist");
+const hasFrontendBuild = fs.existsSync(frontendDistDir);
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
 
 app.use((req, _res, next) => {
   console.log(`[request] ${req.method} ${req.originalUrl}`);
@@ -28,8 +31,18 @@ app.use("/estudiantes", estudiantesRoutes);
 app.use("/movimientos", movimientosRoutes);
 app.use("/admin", adminRoutes);
 
+if (hasFrontendBuild) {
+  app.use(express.static(frontendDistDir));
+} else {
+  app.use(express.static(legacyPublicDir));
+}
+
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  const indexFile = hasFrontendBuild
+    ? path.join(frontendDistDir, "index.html")
+    : path.join(legacyPublicDir, "index.html");
+
+  res.sendFile(indexFile);
 });
 
 app.get("/health", async (_req, res) => {
@@ -44,6 +57,12 @@ app.get("/health", async (_req, res) => {
     res.status(500).json({ status: "DB ERROR" });
   }
 });
+
+if (hasFrontendBuild) {
+  app.get(/^\/(?!auth|estudiantes|movimientos|admin|health).*/, (_req, res) => {
+    res.sendFile(path.join(frontendDistDir, "index.html"));
+  });
+}
 
 app.use(errorHandler);
 
