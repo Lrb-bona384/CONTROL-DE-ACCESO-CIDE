@@ -229,7 +229,7 @@ export default function Estudiantes() {
       </header>
 
       <div className="cards-grid cards-grid--single">
-        <article className="info-card">
+        <article className="info-card info-card--workspace">
           <h3>{currentMode === "editar" ? "Registro cargado" : "Registrar o buscar estudiante"}</h3>
 
           {canManageStudents ? (
@@ -298,38 +298,22 @@ export default function Estudiantes() {
           ) : null}
 
           <form className="stack-form student-lookup-form" onSubmit={handleLookup}>
-            <div className="search-mode-group" role="radiogroup" aria-label="Buscar por">
-              <span className="search-mode-group__label">Buscar por:</span>
-              <label className={`search-mode-option${lookupMode === "placa" ? " active" : ""}`}>
-                <input
-                  type="radio"
-                  name="lookup-mode"
-                  value="placa"
-                  checked={lookupMode === "placa"}
-                  onChange={(event) => setLookupMode(event.target.value)}
-                />
-                <span>Placa</span>
-              </label>
-              <label className={`search-mode-option${lookupMode === "documento" ? " active" : ""}`}>
-                <input
-                  type="radio"
-                  name="lookup-mode"
-                  value="documento"
-                  checked={lookupMode === "documento"}
-                  onChange={(event) => setLookupMode(event.target.value)}
-                />
-                <span>Documento</span>
-              </label>
-            </div>
+            <label className="search-select-field">
+              <span className="search-mode-group__label">Buscar por</span>
+              <select value={lookupMode} onChange={(event) => setLookupMode(event.target.value)}>
+                <option value="placa">Placa</option>
+                <option value="documento">Documento</option>
+              </select>
+            </label>
 
-            <input
-              className="lookup-input"
-              type="text"
-              placeholder={lookupMode === "documento" ? "Ingresa el documento del estudiante" : "Ingresa la placa. Ejemplo: ABC12D"}
-              value={lookupValue}
-              onChange={(event) => setLookupValue(lookupMode === "placa" ? normalizePlate(event.target.value) : event.target.value)}
-            />
-            <div className="button-strip">
+            <div className="student-lookup-row">
+              <input
+                className="lookup-input lookup-input--compact"
+                type="text"
+                placeholder={lookupMode === "documento" ? "Documento del estudiante" : "Placa. Ejemplo: ABC12D"}
+                value={lookupValue}
+                onChange={(event) => setLookupValue(lookupMode === "placa" ? normalizePlate(event.target.value) : event.target.value)}
+              />
               <button type="submit" disabled={loading}>
                 {loading ? "Buscando..." : "Buscar"}
               </button>
@@ -432,7 +416,7 @@ export default function Estudiantes() {
                 className="ghost-button"
                 onClick={() => setShowStudentsTable((current) => !current)}
               >
-                {showStudentsTable ? "Ocultar estudiantes" : "Ver estudiantes"}
+                {showStudentsTable ? "Cerrar listado" : "Ver estudiantes"}
               </button>
             </div>
           </form>
@@ -440,15 +424,24 @@ export default function Estudiantes() {
           {status ? <div className="form-success">{status}</div> : null}
           {error ? <div className="form-error">{error}</div> : null}
         </article>
+      </div>
 
-        <article className="info-card">
-          <h3>Estudiantes registrados</h3>
-          {!showStudentsTable ? (
-            <div className="empty-state">La tabla esta oculta. Usa el boton "Ver estudiantes" para cargarla en pantalla.</div>
-          ) : students.length === 0 ? (
+      {showStudentsTable ? (
+        <section className="table-panel">
+          <div className="table-panel__header">
+            <div>
+              <p className="eyebrow">Listado institucional</p>
+              <h3>Estudiantes registrados</h3>
+            </div>
+            <button type="button" className="ghost-button" onClick={() => setShowStudentsTable(false)}>
+              Cerrar
+            </button>
+          </div>
+
+          {students.length === 0 ? (
             <div className="empty-state">Aun no hay estudiantes registrados.</div>
           ) : (
-            <div className="table-wrap table-wrap--scrollable">
+            <div className="table-wrap table-wrap--scrollable table-wrap--panel">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -475,8 +468,8 @@ export default function Estudiantes() {
               </table>
             </div>
           )}
-        </article>
-      </div>
+        </section>
+      ) : null}
     </section>
   );
 }
