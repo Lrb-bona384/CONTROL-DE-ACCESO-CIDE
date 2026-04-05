@@ -348,6 +348,7 @@ async function runTest(name, fn) {
       },
       release() {},
     };
+    let auditSeen = null;
 
     const { actualizarEstudiantePorDocumento } = loadController({
       usuariosModelMock: {},
@@ -356,9 +357,12 @@ async function runTest(name, fn) {
         findByDocumento: async () => ({
           rows: [{ estudiante_id: 11, documento: "123456", qr_uid: "QR001", nombre: "Luis", carrera: "Ing", vigencia: true }],
         }),
-        updateById: async (_client, id) => ({
+        updateById: async (_client, id, _payload, audit) => {
+          auditSeen = audit;
+          return {
           rows: [{ id, documento: "123456", qr_uid: "QR001", nombre: "Luis", carrera: "Ing", vigencia: true }],
-        }),
+          };
+        },
       },
       poolMock: {
         connect: async () => client,
@@ -366,6 +370,7 @@ async function runTest(name, fn) {
     });
 
     const req = {
+      user: { id: 55, username: "guarda", role: "GUARDA" },
       params: { documento: "123456" },
       body: {
         documento: "123456",
@@ -383,6 +388,7 @@ async function runTest(name, fn) {
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.estudiante.id, 11);
+    assert.deepEqual(auditSeen, { actorUserId: 55 });
     assert.ok(queries.some((sql) => /COMMIT/.test(sql)), "Debe confirmar transaccion");
   });
 

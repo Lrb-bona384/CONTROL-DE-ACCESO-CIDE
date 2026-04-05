@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS estudiantes (
   nombre VARCHAR(120) NOT NULL,
   carrera VARCHAR(120) NOT NULL,
   vigencia BOOLEAN NOT NULL,
+  created_by_user_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
+  updated_by_user_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -32,5 +34,10 @@ CREATE TABLE IF NOT EXISTS movimientos (
   id SERIAL PRIMARY KEY,
   estudiante_id INT NOT NULL REFERENCES estudiantes(id) ON DELETE CASCADE,
   tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA','SALIDA')),
+  actor_user_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
   fecha TIMESTAMP DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_estudiantes_created_by_user_id ON estudiantes(created_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_estudiantes_updated_by_user_id ON estudiantes(updated_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_movimientos_actor_user_id ON movimientos(actor_user_id);

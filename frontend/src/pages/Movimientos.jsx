@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import QrScanner from "../components/QrScanner.jsx";
 
@@ -15,9 +15,14 @@ export default function Movimientos() {
   const [form, setForm] = useState({ qr_uid: "" });
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [lastRegistered, setLastRegistered] = useState(null);
   const canRegister = role === "ADMIN" || role === "GUARDA";
 
-  async function refreshData() {
+  const refreshData = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setError("");
+    }
+
     const payloads = await Promise.all([
       apiRequest("/movimientos/dentro-campus"),
       apiRequest("/movimientos"),
@@ -25,24 +30,14 @@ export default function Movimientos() {
 
     setInsideCampus(payloads[0].estudiantes || []);
     setAllMovements(payloads[1].movimientos || []);
-  }
+  }, [apiRequest]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
-      setError("");
-
       try {
-        const payloads = await Promise.all([
-          apiRequest("/movimientos/dentro-campus"),
-          apiRequest("/movimientos"),
-        ]);
-
-        if (!cancelled) {
-          setInsideCampus(payloads[0].estudiantes || []);
-          setAllMovements(payloads[1].movimientos || []);
-        }
+        await refreshData();
       } catch (err) {
         if (!cancelled) {
           setError(err.message);
@@ -55,7 +50,17 @@ export default function Movimientos() {
     return () => {
       cancelled = true;
     };
-  }, [apiRequest, role, status]);
+  }, [refreshData, role]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      refreshData({ silent: true }).catch(() => null);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [refreshData]);
 
   async function registerMovement(qrValue) {
     const data = await apiRequest("/movimientos/registrar", {
@@ -64,6 +69,15 @@ export default function Movimientos() {
     });
 
     setStatus(`${data.movimiento.tipo} registrada para ${data.estudiante.nombre}`);
+    setLastRegistered({
+      tipo: data.movimiento.tipo,
+      nombre: data.estudiante.nombre,
+      documento: data.estudiante.documento,
+      placa: data.estudiante.placa || "-",
+      fecha: data.movimiento.fecha_hora,
+      qr_uid: qrValue,
+      actor: data.movimiento.actor_username || data.estudiante.updated_by_username || "Sin responsable",
+    });
     setForm({ qr_uid: "" });
     await refreshData();
     return data;
@@ -101,57 +115,105 @@ export default function Movimientos() {
       </header>
 
       {canRegister && (
-        <article className="info-card">
-          <h3>Registrar entrada o salida</h3>
-          <form className="inline-form" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              placeholder="QR UID"
-              value={form.qr_uid}
-              onChange={(event) => setForm({ qr_uid: event.target.value })}
-              required
+        <div className="cards-grid cards-grid--wide-main movement-grid">
+          <article className="info-card movement-register-card">
+            <div className="movement-register-head">
+              <div>
+                <p className="eyebrow">Acceso en tiempo real</p>
+                <h3>Registrar entrada o salida</h3>
+                <p className="movement-copy">
+                  Puedes usar el QR UID manual o activar la camara del equipo. El sistema decide automaticamente si corresponde
+                  ENTRADA o SALIDA segun el ultimo movimiento registrado.
+                </p>
+              </div>
+              <div className="movement-mode-badge">Modo {role}</div>
+            </div>
+
+            <form className="inline-form" onSubmit={handleSubmit}>
+              <input
+                type="text"
+                placeholder="QR UID"
+                value={form.qr_uid}
+                onChange={(event) => setForm({ qr_uid: event.target.value })}
+                required
+              />
+              <button type="submit">Registrar</button>
+            </form>
+            <QrScanner
+              title="Escanear QR para acceso"
+              helpText="Al detectar un QR valido, el sistema registrara automaticamente ENTRADA o SALIDA segun el ultimo movimiento del estudiante."
+              buttonLabel="Abrir camara para acceso"
+              onScan={async (decodedText) => {
+                setError("");
+                setStatus("QR detectado. Registrando movimiento...");
+                await registerMovement(decodedText.trim());
+              }}
             />
-            <button type="submit">Registrar</button>
-          </form>
-          <QrScanner
-            title="Escanear QR para acceso"
-            helpText="Al detectar un QR valido, el sistema registrara automaticamente ENTRADA o SALIDA segun el ultimo movimiento del estudiante."
-            buttonLabel="Abrir camara para acceso"
-            onScan={async (decodedText) => {
-              setError("");
-              setStatus("QR detectado. Registrando movimiento...");
-              await registerMovement(decodedText.trim());
-            }}
-          />
-          {status ? <div className="form-success">{status}</div> : null}
-        </article>
+            {status ? <div className="form-success">{status}</div> : null}
+          </article>
+
+          <article className="info-card movement-last-card">
+            <p className="eyebrow">Ultima lectura</p>
+            <h3>Resultado del escaneo</h3>
+            {lastRegistered ? (
+              <div className="scan-result">
+                <span className={`movement-pill ${lastRegistered.tipo === "ENTRADA" ? "entry" : "exit"}`}>
+                  {lastRegistered.tipo}
+                </span>
+                <strong className="scan-result__name">{lastRegistered.nombre}</strong>
+                <div className="scan-result__meta">
+                  <span>Documento: {lastRegistered.documento}</span>
+                  <span>Placa: {lastRegistered.placa}</span>
+                  <span>QR: {lastRegistered.qr_uid}</span>
+                  <span>Hora: {formatDate(lastRegistered.fecha)}</span>
+                  <span>Responsable: {lastRegistered.actor}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state">
+                Aun no hay una lectura reciente en esta sesion. Escanea un QR para ver aqui el ultimo acceso procesado.
+              </div>
+            )}
+          </article>
+        </div>
       )}
 
       {error ? <div className="form-error">{error}</div> : null}
 
-      <div className="cards-grid">
+      <div className="cards-grid cards-grid--single">
         <article className="info-card">
-          <h3>Dentro del campus</h3>
+          <div className="table-head">
+            <div>
+              <p className="eyebrow">Presencia activa</p>
+              <h3>Dentro del campus</h3>
+            </div>
+            <span className="table-count">{insideCampus.length} visible(s)</span>
+          </div>
           {insideCampus.length === 0 ? (
             <div className="empty-state">No hay estudiantes dentro del campus en este momento.</div>
           ) : (
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--scrollable">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Documento</th>
-                    <th>Nombre</th>
+                    <th>Estudiante</th>
                     <th>Placa</th>
+                    <th>Responsable</th>
                     <th>Ultimo movimiento</th>
                   </tr>
                 </thead>
                 <tbody>
                   {insideCampus.map((item) => (
                     <tr key={`${item.estudiante_id}-${item.documento}`}>
-                      <td>{item.documento}</td>
-                      <td>{item.nombre}</td>
-                      <td>{item.placa || "-"}</td>
-                      <td>{formatDate(item.fecha_ultimo_movimiento)}</td>
+                      <td>
+                        <div className="movement-cell-strong">
+                          <span className="movement-main">{item.nombre}</span>
+                          <span className="movement-sub">DOC {item.documento}</span>
+                        </div>
+                      </td>
+                      <td><span className="plate-chip">{item.placa || "-"}</span></td>
+                      <td>{item.actor_username || "Sin responsable"}</td>
+                      <td><span className="movement-time">{formatDate(item.fecha_ultimo_movimiento)}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -161,27 +223,42 @@ export default function Movimientos() {
         </article>
 
         <article className="info-card">
-          <h3>Historico de movimientos</h3>
+          <div className="table-head">
+            <div>
+              <p className="eyebrow">Actividad reciente</p>
+              <h3>Historico de movimientos</h3>
+            </div>
+            <span className="table-count">{allMovements.length} evento(s)</span>
+          </div>
           {allMovements.length === 0 ? (
             <div className="empty-state">Aun no hay movimientos registrados.</div>
           ) : (
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--scrollable">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Fecha</th>
-                    <th>Documento</th>
                     <th>Estudiante</th>
                     <th>Tipo</th>
+                    <th>Responsable</th>
                   </tr>
                 </thead>
                 <tbody>
                   {allMovements.map((item) => (
                     <tr key={item.id}>
-                      <td>{formatDate(item.fecha_hora)}</td>
-                      <td>{item.documento}</td>
-                      <td>{item.nombre}</td>
-                      <td>{item.tipo}</td>
+                      <td><span className="movement-time">{formatDate(item.fecha_hora)}</span></td>
+                      <td>
+                        <div className="movement-cell-strong">
+                          <span className="movement-main">{item.nombre}</span>
+                          <span className="movement-sub">DOC {item.documento} · Movimiento #{item.id}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`movement-pill ${item.tipo === "ENTRADA" ? "entry" : "exit"}`}>
+                          {item.tipo}
+                        </span>
+                      </td>
+                      <td>{item.actor_username || "Sin responsable"}</td>
                     </tr>
                   ))}
                 </tbody>
