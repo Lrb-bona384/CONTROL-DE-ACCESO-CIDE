@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -27,7 +27,7 @@ export default function Login() {
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message);
-      setLoginState("No fue posible iniciar sesion. Revisa usuario y contraseña.");
+      setLoginState("No fue posible iniciar sesion. Revisa el usuario y la contrasena.");
     }
   }
 
@@ -60,18 +60,20 @@ export default function Login() {
                 onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
                 autoComplete="username"
                 spellCheck="false"
+                placeholder="Ingresa tu usuario"
                 required
               />
             </label>
 
             <label>
-              Password
+              Contrasena
               <input
                 type="password"
                 name="password"
                 value={form.password}
                 onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
                 autoComplete="current-password"
+                placeholder="Ingresa tu contrasena"
                 required
               />
             </label>

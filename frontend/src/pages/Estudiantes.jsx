@@ -223,7 +223,7 @@ export default function Estudiantes() {
         <h2>{canManageStudents ? "Crear, buscar y actualizar estudiantes" : "Consulta de estudiantes"}</h2>
         <p>
           {canManageStudents
-            ? "ADMIN y GUARDA pueden registrar estudiantes nuevos o cargarlos por documento/placa para actualizar sus datos."
+            ? "ADMIN y GUARDA pueden registrar estudiantes nuevos o buscarlos por documento o placa para actualizar sus datos."
             : "CONSULTA puede listar y buscar estudiantes, pero sin modificar registros."}
         </p>
       </header>
@@ -236,7 +236,7 @@ export default function Estudiantes() {
             <div className="student-scan-block">
               <QrScanner
                 title="Leer QR para primer ingreso"
-                helpText="Escanea el QR del estudiante. Si ya existe en la base, cargaremos su informacion inmediatamente."
+                helpText="Escanea el QR del estudiante. Si ya existe en la base, cargaremos su informaciÃ³n inmediatamente."
                 buttonLabel="Escanear QR del estudiante"
                 onScan={async (decodedText) => {
                   const qrValue = decodedText.trim();
@@ -253,7 +253,7 @@ export default function Estudiantes() {
                     setScannedStudent(matchedStudent);
                     setLookupMode("documento");
                     setLookupValue(matchedStudent.documento || "");
-                    setStatus(`QR reconocido. ${matchedStudent.nombre} cargado para edicion.`);
+                    setStatus(`QR reconocido. ${matchedStudent.nombre} cargado para ediciÃ³n.`);
                     return;
                   }
 
@@ -315,7 +315,7 @@ export default function Estudiantes() {
 
             <input
               type="text"
-              placeholder={lookupMode === "documento" ? "Documento" : "Placa ABC12D"}
+              placeholder={lookupMode === "documento" ? "Ingresa el documento" : "Ingresa la placa, por ejemplo ABC12D"}
               value={lookupValue}
               onChange={(event) => setLookupValue(lookupMode === "placa" ? normalizePlate(event.target.value) : event.target.value)}
             />
@@ -332,6 +332,7 @@ export default function Estudiantes() {
                   type="text"
                   value={form.documento}
                   onChange={(event) => handleChange("documento", event.target.value)}
+                  placeholder="Ejemplo: 1234567890"
                   required
                   disabled={!canManageStudents}
                 />
@@ -343,6 +344,7 @@ export default function Estudiantes() {
                   type="text"
                   value={form.qr_uid}
                   onChange={(event) => handleChange("qr_uid", event.target.value)}
+                  placeholder="Ingresa el codigo QR"
                   required
                   disabled={!canManageStudents}
                 />
@@ -354,6 +356,7 @@ export default function Estudiantes() {
                   type="text"
                   value={form.nombre}
                   onChange={(event) => handleChange("nombre", event.target.value)}
+                  placeholder="Ingresa el nombre completo"
                   required
                   disabled={!canManageStudents}
                 />
@@ -392,6 +395,7 @@ export default function Estudiantes() {
                   type="text"
                   value={form.color}
                   onChange={(event) => handleChange("color", event.target.value)}
+                  placeholder="Ejemplo: Negro"
                   required
                   disabled={!canManageStudents}
                 />

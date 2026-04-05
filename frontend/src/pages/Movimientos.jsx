@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+ï»¿import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import QrScanner from "../components/QrScanner.jsx";
 
@@ -109,7 +109,7 @@ export default function Movimientos() {
           {role === "ADMIN"
             ? "Como ADMIN puedes registrar movimientos y revisar el historico completo."
             : role === "GUARDA"
-              ? "Como GUARDA puedes registrar entradas/salidas y ver quienes estan dentro del campus."
+              ? "Como GUARDA puedes registrar entradas y salidas, y ver quienes estan dentro del campus."
               : "Como CONSULTA puedes revisar el estado actual del campus y el historial sin modificar datos."}
         </p>
       </header>
@@ -122,8 +122,8 @@ export default function Movimientos() {
                 <p className="eyebrow">Acceso en tiempo real</p>
                 <h3>Registrar entrada o salida</h3>
                 <p className="movement-copy">
-                  Puedes usar el QR UID manual o activar la camara del equipo. El sistema decide automaticamente si corresponde
-                  ENTRADA o SALIDA segun el ultimo movimiento registrado.
+                  Puedes usar el codigo QR manual o activar la camara del equipo. El sistema decide automaticamente si corresponde
+                  una ENTRADA o una SALIDA segun el ultimo movimiento registrado.
                 </p>
               </div>
               <div className="movement-mode-badge">Modo {role}</div>
@@ -132,7 +132,7 @@ export default function Movimientos() {
             <form className="inline-form" onSubmit={handleSubmit}>
               <input
                 type="text"
-                placeholder="QR UID"
+                placeholder="Ingresa el codigo QR"
                 value={form.qr_uid}
                 onChange={(event) => setForm({ qr_uid: event.target.value })}
                 required
@@ -250,7 +250,7 @@ export default function Movimientos() {
                       <td>
                         <div className="movement-cell-strong">
                           <span className="movement-main">{item.nombre}</span>
-                          <span className="movement-sub">DOC {item.documento} · Movimiento #{item.id}</span>
+                          <span className="movement-sub">DOC {item.documento} - Movimiento #{item.id}</span>
                         </div>
                       </td>
                       <td>
