@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import QrScanner from "../components/QrScanner.jsx";
 
@@ -18,7 +18,11 @@ export default function Movimientos() {
   const [lastRegistered, setLastRegistered] = useState(null);
   const canRegister = role === "ADMIN" || role === "GUARDA";
 
-  async function refreshData() {
+  const refreshData = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setError("");
+    }
+
     const payloads = await Promise.all([
       apiRequest("/movimientos/dentro-campus"),
       apiRequest("/movimientos"),
@@ -26,24 +30,14 @@ export default function Movimientos() {
 
     setInsideCampus(payloads[0].estudiantes || []);
     setAllMovements(payloads[1].movimientos || []);
-  }
+  }, [apiRequest]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
-      setError("");
-
       try {
-        const payloads = await Promise.all([
-          apiRequest("/movimientos/dentro-campus"),
-          apiRequest("/movimientos"),
-        ]);
-
-        if (!cancelled) {
-          setInsideCampus(payloads[0].estudiantes || []);
-          setAllMovements(payloads[1].movimientos || []);
-        }
+        await refreshData();
       } catch (err) {
         if (!cancelled) {
           setError(err.message);
@@ -56,7 +50,17 @@ export default function Movimientos() {
     return () => {
       cancelled = true;
     };
-  }, [apiRequest, role, status]);
+  }, [refreshData, role]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      refreshData({ silent: true }).catch(() => null);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [refreshData]);
 
   async function registerMovement(qrValue) {
     const data = await apiRequest("/movimientos/registrar", {
@@ -190,9 +194,9 @@ export default function Movimientos() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Documento</th>
-                    <th>Nombre</th>
+                    <th>Estudiante</th>
                     <th>Placa</th>
+                    <th>Responsable</th>
                     <th>Ultimo movimiento</th>
                   </tr>
                 </thead>
@@ -205,8 +209,8 @@ export default function Movimientos() {
                           <span className="movement-sub">DOC {item.documento}</span>
                         </div>
                       </td>
-                      <td>{item.documento}</td>
                       <td><span className="plate-chip">{item.placa || "-"}</span></td>
+                      <td>{item.actor_username || "Sin responsable"}</td>
                       <td><span className="movement-time">{formatDate(item.fecha_ultimo_movimiento)}</span></td>
                     </tr>
                   ))}
@@ -233,8 +237,8 @@ export default function Movimientos() {
                   <tr>
                     <th>Fecha</th>
                     <th>Estudiante</th>
-                    <th>Documento</th>
                     <th>Tipo</th>
+                    <th>Responsable</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,15 +248,15 @@ export default function Movimientos() {
                       <td>
                         <div className="movement-cell-strong">
                           <span className="movement-main">{item.nombre}</span>
-                          <span className="movement-sub">Movimiento #{item.id}</span>
+                          <span className="movement-sub">DOC {item.documento} · Movimiento #{item.id}</span>
                         </div>
                       </td>
-                      <td>{item.documento}</td>
                       <td>
                         <span className={`movement-pill ${item.tipo === "ENTRADA" ? "entry" : "exit"}`}>
                           {item.tipo}
                         </span>
                       </td>
+                      <td>{item.actor_username || "Sin responsable"}</td>
                     </tr>
                   ))}
                 </tbody>

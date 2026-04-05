@@ -78,7 +78,9 @@ async function primerIngreso(req, res, next) {
     console.log("[estudiantes] POST /primer-ingreso", { documento: payload.documento });
     await client.query("BEGIN");
 
-    const estudiante = await estudiantesModel.createPrimerIngreso(client, payload);
+    const estudiante = await estudiantesModel.createPrimerIngreso(client, payload, {
+      actorUserId: req.user?.id || null,
+    });
 
     await client.query("COMMIT");
 

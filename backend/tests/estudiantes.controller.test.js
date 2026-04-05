@@ -141,20 +141,23 @@ async function runTest(name, fn) {
     };
 
     let payloadSeen = null;
+    let auditSeen = null;
 
     const { primerIngreso } = loadController({
       poolMock: {
         connect: async () => client,
       },
       estudiantesModelMock: {
-        createPrimerIngreso: async (_client, payload) => {
+        createPrimerIngreso: async (_client, payload, audit) => {
           payloadSeen = payload;
+          auditSeen = audit;
           return fakeEstudiante;
         },
       },
     });
 
     const req = {
+      user: { id: 99, username: "admin", role: "ADMIN" },
       body: {
         documento: "123456",
         qr_uid: "QR001",
@@ -172,6 +175,7 @@ async function runTest(name, fn) {
     assert.equal(res.statusCode, 201);
     assert.equal(res.body.estudiante.qr_uid, "QR001");
     assert.deepEqual(payloadSeen, { ...req.body, placa: "ABC12D" });
+    assert.deepEqual(auditSeen, { actorUserId: 99 });
     assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
     assert.ok(queries.some((sql) => /COMMIT/.test(sql)), "Debe confirmar transaccion");
   });

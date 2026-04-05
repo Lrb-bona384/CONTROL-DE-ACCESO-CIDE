@@ -329,7 +329,9 @@ async function actualizarEstudiante(req, res, next) {
 
   try {
     await client.query("BEGIN");
-    const updated = await estudiantesModel.updateById(client, id, payload);
+    const updated = await estudiantesModel.updateById(client, id, payload, {
+      actorUserId: req.user?.id || null,
+    });
 
     if (updated.rows.length === 0) {
       await client.query("ROLLBACK");
