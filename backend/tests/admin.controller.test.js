@@ -72,6 +72,8 @@ async function runTest(name, fn) {
 }
 
 (async () => {
+  const VALID_QR = "https://soe.cide.edu.co/verificar-estudiante/NjEyMzE2";
+
   await runTest("listarUsuarios retorna count y usuarios", async () => {
     const fakeRows = [{ id: 1, username: "admin", role: "ADMIN" }];
     const { listarUsuarios } = loadController({
@@ -320,10 +322,11 @@ async function runTest(name, fn) {
     const req = {
       params: { id: "3" },
       body: {
-        documento: "123456",
-        qr_uid: "QR001",
+        documento: "12345678",
+        qr_uid: VALID_QR,
         nombre: "Luis",
         carrera: "Ing",
+        celular: "3001234567",
         vigencia: true,
         placa: "ABC12D",
         color: "Negro",
@@ -337,6 +340,82 @@ async function runTest(name, fn) {
     assert.deepEqual(res.body, { error: "qr_uid ya esta registrado en otro estudiante" });
     assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
     assert.ok(queries.some((sql) => /ROLLBACK/.test(sql)), "Debe revertir transaccion");
+  });
+
+  await runTest("actualizarEstudiante rechaza documento invalido", async () => {
+    const { actualizarEstudiante } = loadController({
+      usuariosModelMock: {},
+      bcryptMock: {},
+      estudiantesModelMock: {
+        updateById: async () => {
+          throw new Error("No debe llamarse en validacion");
+        },
+      },
+      poolMock: {
+        connect: async () => ({
+          query: async () => ({ rows: [] }),
+          release() {},
+        }),
+      },
+    });
+
+    const req = {
+      params: { id: "3" },
+      body: {
+        documento: "12A4567",
+        qr_uid: VALID_QR,
+        nombre: "Luis",
+        carrera: "Ing",
+        celular: "3001234567",
+        vigencia: true,
+        placa: "ABC12D",
+        color: "Negro",
+      },
+    };
+    const res = createRes();
+
+    await actualizarEstudiante(req, res, () => {});
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { error: "documento debe tener entre 8 y 10 digitos numericos" });
+  });
+
+  await runTest("actualizarEstudiante rechaza qr_uid fuera de estructura CIDE", async () => {
+    const { actualizarEstudiante } = loadController({
+      usuariosModelMock: {},
+      bcryptMock: {},
+      estudiantesModelMock: {
+        updateById: async () => {
+          throw new Error("No debe llamarse en validacion");
+        },
+      },
+      poolMock: {
+        connect: async () => ({
+          query: async () => ({ rows: [] }),
+          release() {},
+        }),
+      },
+    });
+
+    const req = {
+      params: { id: "3" },
+      body: {
+        documento: "12345678",
+        qr_uid: "QR001",
+        nombre: "Luis",
+        carrera: "Ing",
+        celular: "3001234567",
+        vigencia: true,
+        placa: "ABC12D",
+        color: "Negro",
+      },
+    };
+    const res = createRes();
+
+    await actualizarEstudiante(req, res, () => {});
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { error: "qr_uid debe tener formato QR de CIDE" });
   });
 
   await runTest("actualizarEstudiantePorDocumento usa documento como llave de busqueda", async () => {
@@ -355,12 +434,12 @@ async function runTest(name, fn) {
       bcryptMock: {},
       estudiantesModelMock: {
         findByDocumento: async () => ({
-          rows: [{ estudiante_id: 11, documento: "123456", qr_uid: "QR001", nombre: "Luis", carrera: "Ing", vigencia: true }],
+          rows: [{ estudiante_id: 11, documento: "12345678", qr_uid: VALID_QR, nombre: "Luis", carrera: "Ing", celular: "3001234567", vigencia: true }],
         }),
         updateById: async (_client, id, _payload, audit) => {
           auditSeen = audit;
           return {
-          rows: [{ id, documento: "123456", qr_uid: "QR001", nombre: "Luis", carrera: "Ing", vigencia: true }],
+          rows: [{ id, documento: "12345678", qr_uid: VALID_QR, nombre: "Luis", carrera: "Ing", celular: "3001234567", vigencia: true }],
           };
         },
       },
@@ -371,12 +450,13 @@ async function runTest(name, fn) {
 
     const req = {
       user: { id: 55, username: "guarda", role: "GUARDA" },
-      params: { documento: "123456" },
+      params: { documento: "12345678" },
       body: {
-        documento: "123456",
-        qr_uid: "QR001",
+        documento: "12345678",
+        qr_uid: VALID_QR,
         nombre: "Luis",
         carrera: "Ing",
+        celular: "3001234567",
         vigencia: true,
         placa: "ABC12D",
         color: "Negro",

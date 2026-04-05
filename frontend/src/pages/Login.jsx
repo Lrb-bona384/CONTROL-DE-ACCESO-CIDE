@@ -27,7 +27,7 @@ export default function Login() {
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message);
-      setLoginState("No fue posible iniciar sesion. Revisa usuario y contraseña.");
+      setLoginState("No fue posible iniciar sesion. Revisa el usuario y la contrasena.");
     }
   }
 
@@ -65,7 +65,7 @@ export default function Login() {
             </label>
 
             <label>
-              Password
+              Contrasena
               <input
                 type="password"
                 name="password"

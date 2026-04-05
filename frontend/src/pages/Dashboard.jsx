@@ -13,7 +13,7 @@ function buildSummary(role, counts) {
       title: "Control total del sistema",
       description: "Gestiona usuarios, revisa historicos y monitorea la operacion completa del campus.",
       priority: counts.users > 0
-        ? "Revisa presencia activa, valida el ultimo evento y mantén actualizada la base operativa."
+        ? "Revisa presencia activa, valida el ultimo evento y manten actualizada la base operativa."
         : "Carga primero los usuarios del sistema para completar el panorama administrativo.",
       actions: [
         "Validar usuarios del sistema",
@@ -28,7 +28,7 @@ function buildSummary(role, counts) {
       title: "Operacion de acceso",
       description: "Registra entradas y salidas, valida estudiantes y supervisa quienes estan dentro del campus.",
       priority: counts.inside > 0
-        ? "Prioriza el control de presencia y mantén visible el ultimo evento procesado."
+        ? "Prioriza el control de presencia y manten visible el ultimo evento procesado."
         : "Comienza con un escaneo QR o verifica estudiantes antes de iniciar turno.",
       actions: [
         "Escanear QR para acceso",
@@ -90,7 +90,7 @@ export default function Dashboard() {
     {
       title: "Ultimo evento",
       value: latestMovement?.tipo || "Sin datos",
-      detail: latestMovement ? `${latestMovement.nombre} · ${formatDate(latestMovement.fecha_hora)}` : "Aun no hay actividad reciente",
+      detail: latestMovement ? `${latestMovement.nombre} - ${formatDate(latestMovement.fecha_hora)}` : "Aun no hay actividad reciente",
       tone: "accent",
     },
   ]), [counts.inside, counts.movements, counts.students, counts.users, latestInside, latestMovement, role]);

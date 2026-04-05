@@ -3,6 +3,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import QrScanner from "../components/QrScanner.jsx";
 
 const PLATE_REGEX = /^[A-Z]{3}\d{2}[A-Z]$/;
+const DOCUMENT_REGEX = /^\d{8,10}$/;
+const CIDE_QR_REGEX = /^https:\/\/soe\.cide\.edu\.co\/verificar-estudiante\/[A-Za-z0-9]{1,8}$/;
 const CAREERS = [
   "Tecnico Profesional en Mantenimiento de Sistemas Mecatronicos Industriales - 108538",
   "Tecnico Profesional Procesos de Redes y Comunicaciones - 109639",
@@ -22,6 +24,7 @@ const initialForm = {
   qr_uid: "",
   nombre: "",
   carrera: CAREERS[0],
+  celular: "",
   placa: "",
   color: "",
   vigencia: true,
@@ -29,6 +32,14 @@ const initialForm = {
 
 function normalizePlate(value) {
   return (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+}
+
+function normalizeDocumento(value) {
+  return (value || "").replace(/\D/g, "").slice(0, 10);
+}
+
+function normalizeQr(value) {
+  return (value || "").trim();
 }
 
 function getQrCandidates(value) {
@@ -59,9 +70,10 @@ function mapStudentToForm(student) {
 
   return {
     documento: student.documento || "",
-    qr_uid: student.qr_uid || "",
+    qr_uid: normalizeQr(student.qr_uid || ""),
     nombre: student.nombre || "",
     carrera: student.carrera || CAREERS[0],
+    celular: student.celular || "",
     placa: normalizePlate(student.placa || ""),
     color: student.color || "",
     vigencia: Boolean(student.vigencia),
@@ -123,6 +135,11 @@ export default function Estudiantes() {
       return;
     }
 
+    if (lookupMode === "documento" && !DOCUMENT_REGEX.test(normalizeDocumento(lookupValue))) {
+      setError("La cedula debe tener entre 8 y 10 digitos numericos.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -140,7 +157,7 @@ export default function Estudiantes() {
       setError(err.message);
       setScannedStudent(null);
       if (lookupMode === "documento") {
-        setForm((current) => ({ ...current, documento: lookupValue.trim() }));
+        setForm((current) => ({ ...current, documento: normalizeDocumento(lookupValue) }));
       } else {
         setForm((current) => ({ ...current, placa: normalizePlate(lookupValue) }));
       }
@@ -161,6 +178,16 @@ export default function Estudiantes() {
 
     setError("");
     setStatus("");
+
+    if (!DOCUMENT_REGEX.test(form.documento)) {
+      setError("La cedula debe tener entre 8 y 10 digitos numericos.");
+      return;
+    }
+
+    if (!CIDE_QR_REGEX.test(form.qr_uid)) {
+      setError("El QR debe tener formato CIDE y terminar en un codigo alfanumerico de 1 a 8 caracteres.");
+      return;
+    }
 
     if (!PLATE_REGEX.test(form.placa)) {
       setError("La placa debe tener formato ABC12D.");
@@ -201,7 +228,13 @@ export default function Estudiantes() {
   function handleChange(field, value) {
     setForm((current) => ({
       ...current,
-      [field]: field === "placa" ? normalizePlate(value) : value,
+      [field]: field === "placa"
+        ? normalizePlate(value)
+        : field === "documento"
+          ? normalizeDocumento(value)
+          : field === "qr_uid"
+            ? normalizeQr(value)
+            : value,
     }));
   }
 
@@ -223,7 +256,7 @@ export default function Estudiantes() {
         <h2>{canManageStudents ? "Crear, buscar y actualizar estudiantes" : "Consulta de estudiantes"}</h2>
         <p>
           {canManageStudents
-            ? "ADMIN y GUARDA pueden registrar estudiantes nuevos o cargarlos por documento/placa para actualizar sus datos."
+            ? "ADMIN y GUARDA pueden registrar estudiantes nuevos o buscarlos por documento o placa para actualizar sus datos."
             : "CONSULTA puede listar y buscar estudiantes, pero sin modificar registros."}
         </p>
       </header>
@@ -240,6 +273,11 @@ export default function Estudiantes() {
                 buttonLabel="Escanear QR del estudiante"
                 onScan={async (decodedText) => {
                   const qrValue = decodedText.trim();
+                  if (!CIDE_QR_REGEX.test(qrValue)) {
+                    setStatus("");
+                    setError("El QR escaneado no tiene la estructura oficial de CIDE o supera 8 caracteres al final.");
+                    return;
+                  }
                   const candidates = getQrCandidates(qrValue);
                   const matchedStudent = students.find((student) => candidates.includes(student.qr_uid));
 
@@ -292,6 +330,10 @@ export default function Estudiantes() {
                       <dd>{scannedStudent.placa || "-"}</dd>
                     </div>
                     <div>
+                      <dt>Celular</dt>
+                      <dd>{scannedStudent.celular || "-"}</dd>
+                    </div>
+                    <div>
                       <dt>Creado por</dt>
                       <dd>{scannedStudent.created_by_username || "Sin responsable"}</dd>
                     </div>
@@ -315,9 +357,11 @@ export default function Estudiantes() {
 
             <input
               type="text"
-              placeholder={lookupMode === "documento" ? "Documento" : "Placa ABC12D"}
+              placeholder={lookupMode === "documento" ? "Ingresa el documento" : "Ingresa la placa, por ejemplo ABC12D"}
               value={lookupValue}
-              onChange={(event) => setLookupValue(lookupMode === "placa" ? normalizePlate(event.target.value) : event.target.value)}
+              onChange={(event) => setLookupValue(lookupMode === "placa" ? normalizePlate(event.target.value) : normalizeDocumento(event.target.value))}
+              inputMode={lookupMode === "documento" ? "numeric" : undefined}
+              maxLength={lookupMode === "documento" ? 10 : 6}
             />
             <button type="submit" disabled={loading}>
               {loading ? "Buscando..." : "Buscar"}
@@ -332,6 +376,9 @@ export default function Estudiantes() {
                   type="text"
                   value={form.documento}
                   onChange={(event) => handleChange("documento", event.target.value)}
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="Ejemplo: 1234567890"
                   required
                   disabled={!canManageStudents}
                 />
@@ -343,6 +390,7 @@ export default function Estudiantes() {
                   type="text"
                   value={form.qr_uid}
                   onChange={(event) => handleChange("qr_uid", event.target.value)}
+                  placeholder="https://soe.cide.edu.co/verificar-estudiante/NjEyMzE2"
                   required
                   disabled={!canManageStudents}
                 />
@@ -372,6 +420,17 @@ export default function Estudiantes() {
                     </option>
                   ))}
                 </select>
+              </label>
+
+              <label>
+                Celular
+                <input
+                  type="text"
+                  value={form.celular}
+                  onChange={(event) => handleChange("celular", event.target.value)}
+                  placeholder="Numero de contacto"
+                  disabled={!canManageStudents}
+                />
               </label>
 
               <label>
@@ -453,6 +512,7 @@ export default function Estudiantes() {
                     <th>Nombre</th>
                     <th>QR</th>
                     <th>Placa</th>
+                    <th>Celular</th>
                     <th>Vigencia</th>
                     <th>Creado por</th>
                     <th>Actualizado por</th>
@@ -465,6 +525,7 @@ export default function Estudiantes() {
                       <td>{student.nombre}</td>
                       <td>{student.qr_uid}</td>
                       <td>{student.placa || "-"}</td>
+                      <td>{student.celular || "-"}</td>
                       <td>{student.vigencia ? "Vigente" : "No vigente"}</td>
                       <td>{student.created_by_username || "Sin responsable"}</td>
                       <td>{student.updated_by_username || "Sin responsable"}</td>
