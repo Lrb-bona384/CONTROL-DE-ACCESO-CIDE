@@ -76,6 +76,7 @@ export default function Movimientos() {
       placa: data.estudiante.placa || "-",
       fecha: data.movimiento.fecha_hora,
       qr_uid: qrValue,
+      actor: data.movimiento.actor_username || data.estudiante.updated_by_username || "Sin responsable",
     });
     setForm({ qr_uid: "" });
     await refreshData();
@@ -165,6 +166,7 @@ export default function Movimientos() {
                   <span>Placa: {lastRegistered.placa}</span>
                   <span>QR: {lastRegistered.qr_uid}</span>
                   <span>Hora: {formatDate(lastRegistered.fecha)}</span>
+                  <span>Responsable: {lastRegistered.actor}</span>
                 </div>
               </div>
             ) : (
@@ -190,7 +192,7 @@ export default function Movimientos() {
           {insideCampus.length === 0 ? (
             <div className="empty-state">No hay estudiantes dentro del campus en este momento.</div>
           ) : (
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--scrollable">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -231,7 +233,7 @@ export default function Movimientos() {
           {allMovements.length === 0 ? (
             <div className="empty-state">Aun no hay movimientos registrados.</div>
           ) : (
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--scrollable">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -248,7 +250,7 @@ export default function Movimientos() {
                       <td>
                         <div className="movement-cell-strong">
                           <span className="movement-main">{item.nombre}</span>
-                          <span className="movement-sub">DOC {item.documento} Â· Movimiento #{item.id}</span>
+                          <span className="movement-sub">DOC {item.documento} · Movimiento #{item.id}</span>
                         </div>
                       </td>
                       <td>

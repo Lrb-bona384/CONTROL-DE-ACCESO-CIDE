@@ -264,6 +264,8 @@ export default function Estudiantes() {
                     placa: "-",
                     carrera: "No encontrado en la base",
                     vigencia: false,
+                    created_by_username: null,
+                    updated_by_username: null,
                   });
                   setStatus("QR cargado en el formulario. Completa los datos para registrar al estudiante.");
                 }}
