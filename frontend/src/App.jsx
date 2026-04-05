@@ -16,9 +16,9 @@ export default function App() {
       <main className="auth-shell">
         <section className="auth-card auth-card--loading">
           <p className="eyebrow">Cargando</p>
-          <h2>Verificando sesion</h2>
+          <h2>{"Verificando sesi\u00f3n"}</h2>
           <p className="auth-copy">
-            Estamos comprobando tu acceso para cargar el modulo correcto segun tu rol.
+            {"Estamos comprobando tu acceso para cargar el m\u00f3dulo correcto seg\u00fan tu rol."}
           </p>
         </section>
       </main>
@@ -42,7 +42,7 @@ export default function App() {
         <div className="content__banner">
           <span className="content__banner-icon">i</span>
           <strong>Portal operativo SIUC</strong>
-          <span>{user?.username || "Sesion activa"} · {role || "Sin rol"} · El acceso visible depende del rol autenticado.</span>
+          <span>{`${user?.username || "Sesi\u00f3n activa"} Â· ${role || "Sin rol"} Â· El acceso visible depende del rol autenticado.`}</span>
         </div>
         <Routes>
           <Route element={<ProtectedRoute />}>

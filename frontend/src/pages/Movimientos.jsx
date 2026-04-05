@@ -68,11 +68,11 @@ export default function Movimientos() {
 
   async function registerMovement(payload) {
     if (payload.qr_uid && !CIDE_QR_REGEX.test((payload.qr_uid || "").trim())) {
-      throw new Error("El QR debe tener formato CIDE y terminar en un codigo alfanumerico de 1 a 8 caracteres.");
+      throw new Error("El QR debe tener formato CIDE y terminar en un c\u00f3digo alfanum\u00e9rico de 1 a 8 caracteres.");
     }
 
     if (payload.documento && !DOCUMENT_REGEX.test((payload.documento || "").trim())) {
-      throw new Error("La cedula debe tener entre 8 y 10 digitos numericos.");
+      throw new Error("La c\u00e9dula debe tener entre 8 y 10 d\u00edgitos num\u00e9ricos.");
     }
 
     const data = await apiRequest("/movimientos/registrar", {
@@ -122,12 +122,12 @@ export default function Movimientos() {
     <section className="page">
       <header className="page__header">
         <p className="eyebrow">Movimientos</p>
-        <h2>Operacion segun permisos</h2>
+        <h2>{"Operaci\u00f3n seg\u00fan permisos"}</h2>
         <p>
           {role === "ADMIN"
-            ? "Como ADMIN puedes registrar movimientos y revisar el historico completo."
+            ? "Como ADMIN puedes registrar movimientos y revisar el hist\u00f3rico completo."
             : role === "GUARDA"
-              ? "Como GUARDA puedes registrar entradas y salidas, y ver quienes estan dentro del campus."
+              ? "Como GUARDA puedes registrar entradas y salidas, y ver qui\u00e9nes est\u00e1n dentro del campus."
               : "Como CONSULTA puedes revisar el estado actual del campus y el historial sin modificar datos."}
         </p>
       </header>
@@ -140,8 +140,8 @@ export default function Movimientos() {
                 <p className="eyebrow">Acceso en tiempo real</p>
                 <h3>Registrar entrada o salida</h3>
                 <p className="movement-copy">
-                  Puedes registrar por QR, por cedula o por placa. El sistema decide automaticamente si corresponde
-                  ENTRADA o SALIDA segun el ultimo movimiento registrado del estudiante encontrado.
+                  {"Puedes registrar por QR, por c\u00e9dula o por placa. El sistema decide autom\u00e1ticamente si corresponde "}
+                  ENTRADA o SALIDA{" seg\u00fan el \u00faltimo movimiento registrado del estudiante encontrado."}
                 </p>
               </div>
               <div className="movement-mode-badge">Modo {role}</div>
@@ -150,7 +150,7 @@ export default function Movimientos() {
             <form className="inline-form" onSubmit={handleSubmit}>
               <select value={registerMode} onChange={(event) => setRegisterMode(event.target.value)}>
                 <option value="qr">Registrar por QR</option>
-                <option value="documento">Registrar por cedula</option>
+                <option value="documento">{"Registrar por c\u00e9dula"}</option>
                 <option value="placa">Registrar por placa</option>
               </select>
               {registerMode === "qr" ? (
@@ -164,7 +164,7 @@ export default function Movimientos() {
               ) : registerMode === "documento" ? (
                 <input
                   type="text"
-                  placeholder="Cedula de 8 a 10 digitos"
+                  placeholder={"C\u00e9dula de 8 a 10 d\u00edgitos"}
                   inputMode="numeric"
                   maxLength={10}
                   value={form.documento}
@@ -186,8 +186,8 @@ export default function Movimientos() {
             {registerMode === "qr" ? (
               <QrScanner
                 title="Escanear QR para acceso"
-                helpText="Al detectar un QR valido, el sistema registrara automaticamente ENTRADA o SALIDA segun el ultimo movimiento del estudiante."
-                buttonLabel="Abrir camara para acceso"
+                helpText={"Al detectar un QR v\u00e1lido, el sistema registrar\u00e1 autom\u00e1ticamente ENTRADA o SALIDA seg\u00fan el \u00faltimo movimiento del estudiante."}
+                buttonLabel={"Abrir c\u00e1mara para acceso"}
                 onScan={async (decodedText) => {
                   setError("");
                   setStatus("QR detectado. Registrando movimiento...");
@@ -199,7 +199,7 @@ export default function Movimientos() {
           </article>
 
           <article className="info-card movement-last-card">
-            <p className="eyebrow">Ultima lectura</p>
+            <p className="eyebrow">{"\u00daltima lectura"}</p>
             <h3>Resultado del escaneo</h3>
             {lastRegistered ? (
               <div className="scan-result">
@@ -217,7 +217,7 @@ export default function Movimientos() {
               </div>
             ) : (
               <div className="empty-state">
-                Aun no hay una lectura reciente en esta sesion. Escanea un QR o registra por cedula/placa para ver aqui el ultimo acceso procesado.
+                {"A\u00fan no hay una lectura reciente en esta sesi\u00f3n. Escanea un QR o registra por c\u00e9dula/placa para ver aqu\u00ed el \u00faltimo acceso procesado."}
               </div>
             )}
           </article>
@@ -245,7 +245,7 @@ export default function Movimientos() {
                     <th>Estudiante</th>
                     <th>Placa</th>
                     <th>Responsable</th>
-                    <th>Ultimo movimiento</th>
+                    <th>{"\u00daltimo movimiento"}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -272,12 +272,12 @@ export default function Movimientos() {
           <div className="table-head">
             <div>
               <p className="eyebrow">Actividad reciente</p>
-              <h3>Historico de movimientos</h3>
+              <h3>{"Hist\u00f3rico de movimientos"}</h3>
             </div>
             <span className="table-count">{allMovements.length} evento(s)</span>
           </div>
           {allMovements.length === 0 ? (
-            <div className="empty-state">Aun no hay movimientos registrados.</div>
+            <div className="empty-state">{"A\u00fan no hay movimientos registrados."}</div>
           ) : (
             <div className="table-wrap table-wrap--scrollable">
               <table className="data-table">

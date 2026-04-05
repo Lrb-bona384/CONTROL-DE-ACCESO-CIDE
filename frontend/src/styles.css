@@ -313,6 +313,61 @@ input:-webkit-autofill:active {
   gap: 18px;
 }
 
+.dashboard-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.dashboard-strip__card {
+  display: grid;
+  gap: 8px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-strip__card strong {
+  color: var(--accent-strong);
+  font-size: 1.1rem;
+}
+
+.dashboard-strip__card p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.dashboard-strip__label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.dashboard-strip__card--green {
+  background: linear-gradient(180deg, #f6fcf7, #ffffff);
+}
+
+.dashboard-strip__card--orange {
+  background: linear-gradient(180deg, #fff7ef, #ffffff);
+}
+
+.dashboard-strip__card--blue {
+  background: linear-gradient(180deg, #f5fafe, #ffffff);
+}
+
+.dashboard-strip__card--danger {
+  background: linear-gradient(180deg, #fff5f5, #ffffff);
+}
+
+.dashboard-strip__card--neutral {
+  background: linear-gradient(180deg, #fbfcfd, #ffffff);
+}
+
 .welcome-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 180px;
@@ -1144,6 +1199,7 @@ input:-webkit-autofill:active {
   }
 
   .welcome-panel,
+  .dashboard-strip,
   .stats-grid,
   .cards-grid,
   .cards-grid--asymmetric {

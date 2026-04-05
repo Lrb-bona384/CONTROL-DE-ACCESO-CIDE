@@ -136,7 +136,7 @@ export default function Estudiantes() {
     }
 
     if (lookupMode === "documento" && !DOCUMENT_REGEX.test(normalizeDocumento(lookupValue))) {
-      setError("La cedula debe tener entre 8 y 10 digitos numericos.");
+      setError("La cÃ©dula debe tener entre 8 y 10 dÃ­gitos numÃ©ricos.");
       return;
     }
 
@@ -152,7 +152,7 @@ export default function Estudiantes() {
       setOriginalDocumento(data.documento || "");
       setCurrentMode("editar");
       setScannedStudent(data);
-      setStatus(`Estudiante ${data.nombre} cargado para ${canManageStudents ? "edicion" : "consulta"}.`);
+      setStatus(`Estudiante ${data.nombre} cargado para ${canManageStudents ? "ediciÃ³n" : "consulta"}.`);
     } catch (err) {
       setError(err.message);
       setScannedStudent(null);
@@ -180,12 +180,12 @@ export default function Estudiantes() {
     setStatus("");
 
     if (!DOCUMENT_REGEX.test(form.documento)) {
-      setError("La cedula debe tener entre 8 y 10 digitos numericos.");
+      setError("La cÃ©dula debe tener entre 8 y 10 dÃ­gitos numÃ©ricos.");
       return;
     }
 
     if (!CIDE_QR_REGEX.test(form.qr_uid)) {
-      setError("El QR debe tener formato CIDE y terminar en un codigo alfanumerico de 1 a 8 caracteres.");
+      setError("El QR debe tener formato CIDE y terminar en un cÃ³digo alfanumerico de 1 a 8 caracteres.");
       return;
     }
 
@@ -269,7 +269,7 @@ export default function Estudiantes() {
             <div className="student-scan-block">
               <QrScanner
                 title="Leer QR para primer ingreso"
-                helpText="Escanea el QR del estudiante. Si ya existe en la base, cargaremos su informacion inmediatamente."
+                helpText="Escanea el QR del estudiante. Si ya existe en la base, cargaremos su informaciÃ³n inmediatamente."
                 buttonLabel="Escanear QR del estudiante"
                 onScan={async (decodedText) => {
                   const qrValue = decodedText.trim();
@@ -291,7 +291,7 @@ export default function Estudiantes() {
                     setScannedStudent(matchedStudent);
                     setLookupMode("documento");
                     setLookupValue(matchedStudent.documento || "");
-                    setStatus(`QR reconocido. ${matchedStudent.nombre} cargado para edicion.`);
+                    setStatus(`QR reconocido. ${matchedStudent.nombre} cargado para ediciÃ³n.`);
                     return;
                   }
 
@@ -310,7 +310,7 @@ export default function Estudiantes() {
               />
 
               <div className="student-scan-result">
-                <h4>Informacion del estudiante escaneado</h4>
+                <h4>InformaciÃ³n del estudiante escaneado</h4>
                 {scannedStudent ? (
                   <dl className="scan-info-grid">
                     <div>
@@ -343,7 +343,7 @@ export default function Estudiantes() {
                     </div>
                   </dl>
                 ) : (
-                  <div className="empty-state">Escanea un QR para ver aqui la informacion del estudiante.</div>
+                  <div className="empty-state">Escanea un QR para ver aquÃ­ la informaciÃ³n del estudiante.</div>
                 )}
               </div>
             </div>
@@ -378,7 +378,7 @@ export default function Estudiantes() {
                   onChange={(event) => handleChange("documento", event.target.value)}
                   inputMode="numeric"
                   maxLength={10}
-                  placeholder="Ejemplo: 1234567890"
+                  placeholder="Ejemplo: 12345678"
                   required
                   disabled={!canManageStudents}
                 />
@@ -428,7 +428,7 @@ export default function Estudiantes() {
                   type="text"
                   value={form.celular}
                   onChange={(event) => handleChange("celular", event.target.value)}
-                  placeholder="Numero de contacto"
+                  placeholder="NÃºmero de contacto"
                   disabled={!canManageStudents}
                 />
               </label>
@@ -502,7 +502,7 @@ export default function Estudiantes() {
           </div>
 
           {students.length === 0 ? (
-            <div className="empty-state">Aun no hay estudiantes registrados.</div>
+            <div className="empty-state">AÃºn no hay estudiantes registrados.</div>
           ) : (
             <div className="table-wrap table-wrap--scrollable table-wrap--panel">
               <table className="data-table">
@@ -540,5 +540,3 @@ export default function Estudiantes() {
     </section>
   );
 }
-
-
