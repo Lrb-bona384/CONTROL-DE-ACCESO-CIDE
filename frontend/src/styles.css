@@ -693,6 +693,10 @@ input:-webkit-autofill:active {
   align-items: end;
 }
 
+.student-lookup-form {
+  grid-template-columns: minmax(250px, 280px) 1fr auto;
+}
+
 .stack-form label,
 .auth-form label {
   display: grid;

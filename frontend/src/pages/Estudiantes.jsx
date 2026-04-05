@@ -421,7 +421,7 @@ export default function Estudiantes() {
             </div>
           ) : null}
 
-          <form className="inline-form" onSubmit={handleLookup}>
+          <form className="inline-form student-lookup-form" onSubmit={handleLookup}>
             <select value={lookupMode} onChange={(event) => setLookupMode(event.target.value)}>
               <option value="documento">Buscar por documento</option>
               <option value="placa">Buscar por placa</option>
