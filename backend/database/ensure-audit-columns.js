@@ -18,6 +18,46 @@ async function ensureAuditColumns() {
   await pool.query("CREATE INDEX IF NOT EXISTS idx_estudiantes_updated_by_user_id ON estudiantes(updated_by_user_id)");
   await pool.query("CREATE INDEX IF NOT EXISTS idx_movimientos_actor_user_id ON movimientos(actor_user_id)");
 
+  const duplicateCelulares = await pool.query(`
+    SELECT celular, COUNT(*)::int AS total
+    FROM estudiantes
+    WHERE celular IS NOT NULL AND TRIM(celular) <> ''
+    GROUP BY celular
+    HAVING COUNT(*) > 1
+    LIMIT 1
+  `);
+
+  if (duplicateCelulares.rows.length > 0) {
+    const row = duplicateCelulares.rows[0];
+    throw new Error(`No se pudo asegurar unicidad de celular. Duplicado encontrado: ${row.celular} (${row.total} registros).`);
+  }
+
+  const duplicatePlacas = await pool.query(`
+    SELECT UPPER(TRIM(placa)) AS placa_normalizada, COUNT(*)::int AS total
+    FROM motocicletas
+    WHERE placa IS NOT NULL AND TRIM(placa) <> ''
+    GROUP BY UPPER(TRIM(placa))
+    HAVING COUNT(*) > 1
+    LIMIT 1
+  `);
+
+  if (duplicatePlacas.rows.length > 0) {
+    const row = duplicatePlacas.rows[0];
+    throw new Error(`No se pudo asegurar unicidad de placa. Duplicado encontrado: ${row.placa_normalizada} (${row.total} registros).`);
+  }
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_estudiantes_celular
+    ON estudiantes (celular)
+    WHERE celular IS NOT NULL AND TRIM(celular) <> ''
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_motocicletas_placa_upper
+    ON motocicletas (UPPER(TRIM(placa)))
+    WHERE placa IS NOT NULL AND TRIM(placa) <> ''
+  `);
+
   clearAuditCapabilitiesCache();
 }
 

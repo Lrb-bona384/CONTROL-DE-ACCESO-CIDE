@@ -465,7 +465,62 @@ async function runTest(name, fn) {
     await actualizarEstudiante(req, res, () => {});
 
     assert.equal(res.statusCode, 400);
-    assert.deepEqual(res.body, { error: "celular debe tener solo numeros y maximo 10 caracteres" });
+  assert.deepEqual(res.body, { error: "celular debe tener exactamente 10 numeros" });
+  });
+
+  await runTest("actualizarEstudiante retorna 409 si celular ya existe en otro estudiante", async () => {
+    const queries = [];
+    const client = {
+      query: async (sql) => {
+        queries.push(sql);
+        return { rows: [] };
+      },
+      release() {},
+    };
+
+    const { actualizarEstudiante } = loadController({
+      usuariosModelMock: {},
+      bcryptMock: {},
+      estudiantesModelMock: {
+        findById: async () => ({
+          rows: [{ estudiante_id: 3, documento: "12345678", qr_uid: VALID_QR, nombre: "Luis", carrera: "Ing", celular: "3001234567", vigencia: true, placa: "ABC12D", color: "Negro" }],
+        }),
+        findByDocumentoForUpdate: async () => ({ rows: [] }),
+        findByQrCandidatesForUpdate: async () => ({ rows: [] }),
+        findByPlacaForUpdate: async () => ({ rows: [] }),
+        findByCelularForUpdate: async () => ({
+          rows: [{ id: 11, documento: "87654321", qr_uid: "https://soe.cide.edu.co/verificar-estudiante/QA11" }],
+        }),
+        updateById: async () => {
+          throw new Error("No debe actualizar cuando el celular ya existe");
+        },
+      },
+      poolMock: {
+        connect: async () => client,
+      },
+    });
+
+    const req = {
+      params: { id: "3" },
+      body: {
+        documento: "12345678",
+        qr_uid: VALID_QR,
+        nombre: "Luis",
+        carrera: "Ing",
+        celular: "3001234567",
+        vigencia: true,
+        placa: "ABC12D",
+        color: "Negro",
+      },
+    };
+    const res = createRes();
+
+    await actualizarEstudiante(req, res, () => {});
+
+    assert.equal(res.statusCode, 409);
+    assert.deepEqual(res.body, { error: "celular ya esta registrado en otro estudiante" });
+    assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
+    assert.ok(queries.some((sql) => /ROLLBACK/.test(sql)), "Debe revertir transaccion");
   });
 
   await runTest("actualizarEstudiantePorDocumento usa documento como llave de busqueda", async () => {

@@ -249,12 +249,26 @@ async function findByPlacaForUpdate(client, placa) {
   );
 }
 
+async function findByCelularForUpdate(client, celular) {
+  return client.query(
+    `
+    SELECT id, documento, qr_uid, nombre, carrera, celular, vigencia
+    FROM estudiantes
+    WHERE celular = $1
+    LIMIT 1
+    FOR UPDATE
+    `,
+    [celular]
+  );
+}
+
 module.exports = {
   createPrimerIngreso,
   findByDocumento,
   findByDocumentoForUpdate,
   findByPlaca,
   findByPlacaForUpdate,
+  findByCelularForUpdate,
   findById,
   listAll,
   findByQrUidForUpdate,

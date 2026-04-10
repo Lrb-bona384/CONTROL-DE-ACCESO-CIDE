@@ -42,3 +42,9 @@ CREATE TABLE IF NOT EXISTS movimientos (
 CREATE INDEX IF NOT EXISTS idx_estudiantes_created_by_user_id ON estudiantes(created_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_estudiantes_updated_by_user_id ON estudiantes(updated_by_user_id);
 CREATE INDEX IF NOT EXISTS idx_movimientos_actor_user_id ON movimientos(actor_user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_estudiantes_celular
+  ON estudiantes(celular)
+  WHERE celular IS NOT NULL AND TRIM(celular) <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_motocicletas_placa_upper
+  ON motocicletas(UPPER(TRIM(placa)))
+  WHERE placa IS NOT NULL AND TRIM(placa) <> '';

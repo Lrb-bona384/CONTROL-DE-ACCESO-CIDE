@@ -6,7 +6,7 @@ const { ROLES } = require("../constants/roles");
 
 const PLACA_REGEX = /^[A-Z]{3}\d{2}[A-Z]$/;
 const DOCUMENTO_REGEX = /^\d{8,10}$/;
-const CELULAR_REGEX = /^\d{1,10}$/;
+const CELULAR_REGEX = /^\d{10}$/;
 const QR_CIDE_REGEX = /^https:\/\/soe\.cide\.edu\.co\/verificar-estudiante\/[A-Za-z0-9]{1,8}$/;
 
 function normalizeRole(roleValue) {
@@ -59,7 +59,7 @@ function validateStudentPayload(body = {}) {
   if (!nombre) return "nombre es requerido";
   if (!carrera) return "carrera es requerida";
   if (celular != null && celular !== "" && typeof celular !== "string") return "celular debe ser texto";
-  if (celular && !CELULAR_REGEX.test(celular)) return "celular debe tener solo numeros y maximo 10 caracteres";
+  if (celular && !CELULAR_REGEX.test(celular)) return "celular debe tener exactamente 10 numeros";
   if (typeof vigencia !== "boolean") return "vigencia debe ser boolean";
   if (!placa) return "placa es requerida";
   if (!PLACA_REGEX.test(placa)) return "placa debe tener formato ABC12D";
@@ -90,6 +90,14 @@ function buildConflictMessage(error) {
     if (error.constraint === "estudiantes_documento_key") {
       return "documento ya esta registrado en otro estudiante";
     }
+
+    if (error.constraint === "uq_motocicletas_placa_upper") {
+      return "placa ya esta registrada en otro estudiante";
+    }
+
+    if (error.constraint === "uq_estudiantes_celular") {
+      return "celular ya esta registrado en otro estudiante";
+    }
   }
 
   return null;
@@ -102,6 +110,42 @@ function buildGuardRestrictedFieldsError() {
 function detectRestrictedStudentChanges(existing = {}, payload = {}) {
   const restrictedFields = ["documento", "qr_uid", "nombre", "carrera"];
   return restrictedFields.filter((field) => (existing[field] ?? null) !== (payload[field] ?? null));
+}
+
+async function safeFind(methodName, ...args) {
+  const finder = estudiantesModel[methodName];
+  if (typeof finder !== "function") {
+    return { rows: [] };
+  }
+
+  return finder(...args);
+}
+
+function buildDuplicateFieldMessage(field) {
+  if (field === "documento") return "documento ya esta registrado en otro estudiante";
+  if (field === "qr_uid") return "qr_uid ya esta registrado en otro estudiante";
+  if (field === "placa") return "placa ya esta registrada en otro estudiante";
+  if (field === "celular") return "celular ya esta registrado en otro estudiante";
+  return "Ya existe un registro con esos datos unicos";
+}
+
+function resolveStudentId(row) {
+  return row?.id ?? row?.estudiante_id ?? null;
+}
+
+async function validarDuplicadosActualizacion(client, payload, currentStudentId) {
+  const checks = [
+    { field: "documento", result: await safeFind("findByDocumentoForUpdate", client, payload.documento) },
+    { field: "qr_uid", result: await safeFind("findByQrCandidatesForUpdate", client, [payload.qr_uid]) },
+    { field: "placa", result: await safeFind("findByPlacaForUpdate", client, payload.placa) },
+    { field: "celular", result: payload.celular ? await safeFind("findByCelularForUpdate", client, payload.celular) : { rows: [] } },
+  ];
+
+  const conflict = checks.find(({ result }) =>
+    (result.rows || []).some((row) => resolveStudentId(row) !== currentStudentId)
+  );
+
+  return conflict ? buildDuplicateFieldMessage(conflict.field) : null;
 }
 
 async function listarUsuarios(_req, res, next) {
@@ -371,6 +415,12 @@ async function actualizarEstudiante(req, res, next) {
     if (validationError) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: validationError });
+    }
+
+    const duplicateConflict = await validarDuplicadosActualizacion(client, payload, id);
+    if (duplicateConflict) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: duplicateConflict });
     }
 
     const updated = await estudiantesModel.updateById(client, id, payload, {
