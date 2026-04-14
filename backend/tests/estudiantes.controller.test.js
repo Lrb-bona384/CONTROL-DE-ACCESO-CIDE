@@ -223,7 +223,7 @@ async function runTest(name, fn) {
     await primerIngreso(req, res, () => {});
 
     assert.equal(res.statusCode, 400);
-    assert.deepEqual(res.body, { error: "celular debe tener solo numeros y maximo 10 caracteres" });
+  assert.deepEqual(res.body, { error: "celular debe tener exactamente 10 numeros" });
   });
 
   await runTest("primerIngreso crea registro incluyendo qr_uid", async () => {
@@ -332,6 +332,55 @@ async function runTest(name, fn) {
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 409);
     assert.deepEqual(res.body, { error: "qr_uid ya esta registrado en otro estudiante" });
+    assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
+    assert.ok(queries.some((sql) => /ROLLBACK/.test(sql)), "Debe revertir transaccion");
+  });
+
+  await runTest("primerIngreso retorna 409 si placa ya existe en otro estudiante", async () => {
+    const queries = [];
+    const client = {
+      query: async (sql) => {
+        queries.push(sql);
+        return { rows: [] };
+      },
+      release() {},
+    };
+
+    const { primerIngreso } = loadController({
+      poolMock: {
+        connect: async () => client,
+      },
+      estudiantesModelMock: {
+        findByDocumentoForUpdate: async () => ({ rows: [] }),
+        findByQrCandidatesForUpdate: async () => ({ rows: [] }),
+        findByPlacaForUpdate: async () => ({
+          rows: [{ id: 77, documento: "87654321", qr_uid: "https://soe.cide.edu.co/verificar-estudiante/QA77" }],
+        }),
+        findByCelularForUpdate: async () => ({ rows: [] }),
+        createPrimerIngreso: async () => {
+          throw new Error("No debe crear cuando la placa ya existe");
+        },
+      },
+    });
+
+    const req = {
+      body: {
+        documento: "12345679",
+        qr_uid: VALID_QR,
+        nombre: "Luis",
+        carrera: "Ing",
+        celular: "3001234567",
+        vigencia: true,
+        placa: "ABC12D",
+        color: "Negro",
+      },
+    };
+    const res = createRes();
+
+    await primerIngreso(req, res, () => {});
+
+    assert.equal(res.statusCode, 409);
+    assert.deepEqual(res.body, { error: "placa ya esta registrada en otro estudiante" });
     assert.ok(queries.some((sql) => /BEGIN/.test(sql)), "Debe abrir transaccion");
     assert.ok(queries.some((sql) => /ROLLBACK/.test(sql)), "Debe revertir transaccion");
   });

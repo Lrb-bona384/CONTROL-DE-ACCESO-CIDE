@@ -4,7 +4,7 @@ import QrScanner from "../components/QrScanner.jsx";
 
 const PLATE_REGEX = /^[A-Z]{3}\d{2}[A-Z]$/;
 const DOCUMENT_REGEX = /^\d{8,10}$/;
-const CELULAR_REGEX = /^\d{1,10}$/;
+const CELULAR_REGEX = /^\d{10}$/;
 const CIDE_QR_REGEX = /^https:\/\/soe\.cide\.edu\.co\/verificar-estudiante\/[A-Za-z0-9]{1,8}$/;
 const CAREERS = [
   "Tecnico Profesional en Mantenimiento de Sistemas Mecatronicos Industriales - 108538",
@@ -18,6 +18,7 @@ const CAREERS = [
   "Ingenieria Mecatronica - 108787",
   "Ingenieria Industrial - 108795",
   "Ingenieria de Sistemas - 110399",
+  "Administrativos / Docente",
 ];
 
 const initialForm = {
@@ -199,7 +200,7 @@ export default function Estudiantes() {
     }
 
     if (form.celular && !CELULAR_REGEX.test(form.celular)) {
-      setError("El celular debe contener solo números y máximo 10 caracteres.");
+      setError("El celular debe contener exactamente 10 números.");
       return;
     }
 
@@ -254,14 +255,25 @@ export default function Estudiantes() {
 
       const estudiante = data.estudiante || data;
       const actionLabel = isEditing ? "actualizado" : "creado";
+      const successMessage = `Estudiante ${actionLabel} correctamente.`;
 
-      setStatus(`Estudiante ${actionLabel} correctamente.`);
-      setCurrentMode("editar");
-      setOriginalDocumento(estudiante.documento || payload.documento);
-      setLookupMode("documento");
-      setLookupValue(estudiante.documento || payload.documento);
-      setForm(mapStudentToForm(estudiante));
-      setScannedStudent(estudiante);
+      if (isEditing) {
+        setStatus(successMessage);
+        setCurrentMode("editar");
+        setOriginalDocumento(estudiante.documento || payload.documento);
+        setLookupMode("documento");
+        setLookupValue(estudiante.documento || payload.documento);
+        setForm(mapStudentToForm(estudiante));
+        setScannedStudent(estudiante);
+      } else {
+        setForm(initialForm);
+        setLookupValue("");
+        setLookupMode("documento");
+        setCurrentMode("crear");
+        setOriginalDocumento("");
+        setScannedStudent(null);
+        setStatus(successMessage);
+      }
       setConfirmState({ open: false, payload: null, details: null });
       await fetchStudents();
     } catch (err) {
@@ -352,8 +364,6 @@ export default function Estudiantes() {
                   }
                   const candidates = getQrCandidates(qrValue);
                   const matchedStudent = students.find((student) => candidates.includes(student.qr_uid));
-
-                  handleChange("qr_uid", qrValue);
                   setError("");
 
                   if (matchedStudent) {
@@ -367,6 +377,14 @@ export default function Estudiantes() {
                     return;
                   }
 
+                  setForm({
+                    ...initialForm,
+                    qr_uid: qrValue,
+                  });
+                  setOriginalDocumento("");
+                  setCurrentMode("crear");
+                  setLookupMode("documento");
+                  setLookupValue("");
                   setScannedStudent({
                     documento: "Sin registro",
                     nombre: "QR nuevo",
@@ -502,6 +520,7 @@ export default function Estudiantes() {
                   onChange={(event) => handleChange("celular", event.target.value)}
                   placeholder="Número de contacto"
                   inputMode="numeric"
+                  minLength={10}
                   maxLength={10}
                   disabled={!canManageStudents}
                 />

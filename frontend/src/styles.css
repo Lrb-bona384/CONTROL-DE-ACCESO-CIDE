@@ -1168,6 +1168,16 @@ input:-webkit-autofill:active {
   text-align: center;
 }
 
+.error-boundary-card {
+  max-width: 680px;
+}
+
+.error-boundary-message {
+  margin-top: 12px;
+  text-align: left;
+  word-break: break-word;
+}
+
 .auth-card-head {
   text-align: center;
 }

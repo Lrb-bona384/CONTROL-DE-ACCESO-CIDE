@@ -6,7 +6,7 @@ const { ROLES } = require("../constants/roles");
 
 const PLACA_REGEX = /^[A-Z]{3}\d{2}[A-Z]$/;
 const DOCUMENTO_REGEX = /^\d{8,10}$/;
-const CELULAR_REGEX = /^\d{1,10}$/;
+const CELULAR_REGEX = /^\d{10}$/;
 const QR_CIDE_REGEX = /^https:\/\/soe\.cide\.edu\.co\/verificar-estudiante\/[A-Za-z0-9]{1,8}$/;
 
 function normalizeRole(roleValue) {
@@ -59,7 +59,7 @@ function validateStudentPayload(body = {}) {
   if (!nombre) return "nombre es requerido";
   if (!carrera) return "carrera es requerida";
   if (celular != null && celular !== "" && typeof celular !== "string") return "celular debe ser texto";
-  if (celular && !CELULAR_REGEX.test(celular)) return "celular debe tener solo numeros y maximo 10 caracteres";
+  if (celular && !CELULAR_REGEX.test(celular)) return "celular debe tener exactamente 10 numeros";
   if (typeof vigencia !== "boolean") return "vigencia debe ser boolean";
   if (!placa) return "placa es requerida";
   if (!PLACA_REGEX.test(placa)) return "placa debe tener formato ABC12D";
@@ -90,6 +90,14 @@ function buildConflictMessage(error) {
     if (error.constraint === "estudiantes_documento_key") {
       return "documento ya esta registrado en otro estudiante";
     }
+
+    if (error.constraint === "uq_motocicletas_placa_upper") {
+      return "placa ya esta registrada en otro estudiante";
+    }
+
+    if (error.constraint === "uq_estudiantes_celular") {
+      return "celular ya esta registrado en otro estudiante";
+    }
   }
 
   return null;
@@ -102,6 +110,42 @@ function buildGuardRestrictedFieldsError() {
 function detectRestrictedStudentChanges(existing = {}, payload = {}) {
   const restrictedFields = ["documento", "qr_uid", "nombre", "carrera"];
   return restrictedFields.filter((field) => (existing[field] ?? null) !== (payload[field] ?? null));
+}
+
+async function safeFind(methodName, ...args) {
+  const finder = estudiantesModel[methodName];
+  if (typeof finder !== "function") {
+    return { rows: [] };
+  }
+
+  return finder(...args);
+}
+
+function buildDuplicateFieldMessage(field) {
+  if (field === "documento") return "documento ya esta registrado en otro estudiante";
+  if (field === "qr_uid") return "qr_uid ya esta registrado en otro estudiante";
+  if (field === "placa") return "placa ya esta registrada en otro estudiante";
+  if (field === "celular") return "celular ya esta registrado en otro estudiante";
+  return "Ya existe un registro con esos datos unicos";
+}
+
+function resolveStudentId(row) {
+  return row?.id ?? row?.estudiante_id ?? null;
+}
+
+async function validarDuplicadosActualizacion(client, payload, currentStudentId) {
+  const checks = [
+    { field: "documento", result: await safeFind("findByDocumentoForUpdate", client, payload.documento) },
+    { field: "qr_uid", result: await safeFind("findByQrCandidatesForUpdate", client, [payload.qr_uid]) },
+    { field: "placa", result: await safeFind("findByPlacaForUpdate", client, payload.placa) },
+    { field: "celular", result: payload.celular ? await safeFind("findByCelularForUpdate", client, payload.celular) : { rows: [] } },
+  ];
+
+  const conflict = checks.find(({ result }) =>
+    (result.rows || []).some((row) => resolveStudentId(row) !== currentStudentId)
+  );
+
+  return conflict ? buildDuplicateFieldMessage(conflict.field) : null;
 }
 
 async function listarUsuarios(_req, res, next) {
@@ -133,7 +177,7 @@ async function crearUsuario(req, res, next) {
   }
 
   try {
-    const existing = await usuariosModel.findByUsername(username.trim());
+    const existing = await usuariosModel.findByUsernameAnyStatus(username.trim());
 
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: "El usuario ya existe" });
@@ -217,7 +261,7 @@ async function actualizarUsuario(req, res, next) {
     }
 
     if (payload.username) {
-      const sameUsername = await usuariosModel.findByUsername(payload.username);
+      const sameUsername = await usuariosModel.findByUsernameAnyStatus(payload.username);
       if (sameUsername.rows.length > 0 && sameUsername.rows[0].id !== id) {
         return res.status(409).json({ error: "El usuario ya existe" });
       }
@@ -263,14 +307,14 @@ async function eliminarUsuario(req, res, next) {
   }
 
   try {
-    const deleted = await usuariosModel.deleteUsuario(id);
+    const deleted = await usuariosModel.deactivateUsuario(id);
 
     if (deleted.rows.length === 0) {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
     return res.status(200).json({
-      message: "Usuario eliminado",
+      message: "Usuario desactivado",
       usuario: deleted.rows[0],
     });
   } catch (error) {
@@ -289,7 +333,7 @@ async function eliminarUsuarioPorUsername(req, res, next) {
     const existing = await usuariosModel.findByUsername(username);
 
     if (existing.rows.length === 0) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
+      return res.status(404).json({ error: "Usuario no encontrado o ya desactivado" });
     }
 
     req.params.id = String(existing.rows[0].id);
@@ -314,6 +358,62 @@ async function obtenerEstudiantePorDocumento(req, res, next) {
     }
 
     return res.status(200).json(result.rows[0]);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function listarEstudiantesAdmin(_req, res, next) {
+  try {
+    const result = await estudiantesModel.listAllIncludingDeleted();
+    return res.status(200).json({
+      count: result.rows.length,
+      estudiantes: result.rows,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function reactivarUsuario(req, res, next) {
+  const id = parseId(req.params.id);
+
+  if (!id) {
+    return res.status(400).json({ error: "id de usuario invalido" });
+  }
+
+  try {
+    const restored = await usuariosModel.reactivateUsuario(id);
+
+    if (restored.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado o ya activo" });
+    }
+
+    return res.status(200).json({
+      message: "Usuario reactivado",
+      usuario: restored.rows[0],
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function reactivarUsuarioPorUsername(req, res, next) {
+  const username = normalizeText(req.params.username);
+
+  if (!username) {
+    return res.status(400).json({ error: "username es requerido" });
+  }
+
+  try {
+    const existing = await usuariosModel.findByUsernameAnyStatus(username);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    req.params.id = String(existing.rows[0].id);
+    return reactivarUsuario(req, res, next);
   } catch (error) {
     return next(error);
   }
@@ -371,6 +471,12 @@ async function actualizarEstudiante(req, res, next) {
     if (validationError) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: validationError });
+    }
+
+    const duplicateConflict = await validarDuplicadosActualizacion(client, payload, id);
+    if (duplicateConflict) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: duplicateConflict });
     }
 
     const updated = await estudiantesModel.updateById(client, id, payload, {
@@ -431,16 +537,16 @@ async function eliminarEstudiante(req, res, next) {
 
   try {
     await client.query("BEGIN");
-    const deleted = await estudiantesModel.deleteById(client, id);
+    const deleted = await estudiantesModel.softDeleteById(client, id);
 
     if (deleted.rows.length === 0) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Estudiante no encontrado" });
+      return res.status(404).json({ error: "Estudiante no encontrado o ya desactivado" });
     }
 
     await client.query("COMMIT");
     return res.status(200).json({
-      message: "Estudiante eliminado",
+      message: "Estudiante desactivado",
       estudiante: deleted.rows[0],
     });
   } catch (error) {
@@ -477,18 +583,80 @@ async function eliminarEstudiantePorDocumento(req, res, next) {
   }
 }
 
+async function reactivarEstudiante(req, res, next) {
+  const id = parseId(req.params.id);
+  if (!id) {
+    return res.status(400).json({ error: "id de estudiante invalido" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const restored = await estudiantesModel.restoreById(client, id);
+
+    if (restored.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Estudiante no encontrado o ya activo" });
+    }
+
+    await client.query("COMMIT");
+    return res.status(200).json({
+      message: "Estudiante reactivado",
+      estudiante: restored.rows[0],
+    });
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (_) {
+      // no-op
+    }
+
+    return next(error);
+  } finally {
+    client.release();
+  }
+}
+
+async function reactivarEstudiantePorDocumento(req, res, next) {
+  const documento = normalizeText(req.params.documento);
+
+  if (!documento) {
+    return res.status(400).json({ error: "documento es requerido" });
+  }
+
+  try {
+    const existing = await estudiantesModel.listAllIncludingDeleted();
+    const match = (existing.rows || []).find((row) => row.documento === documento);
+
+    if (!match) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    req.params.id = String(match.estudiante_id);
+    return reactivarEstudiante(req, res, next);
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   listarUsuarios,
+  listarEstudiantesAdmin,
   crearUsuario,
   obtenerUsuarioPorUsername,
   actualizarUsuario,
   actualizarUsuarioPorUsername,
   eliminarUsuario,
   eliminarUsuarioPorUsername,
+  reactivarUsuario,
+  reactivarUsuarioPorUsername,
   obtenerEstudiantePorDocumento,
   obtenerEstudiantePorPlaca,
   actualizarEstudiante,
   actualizarEstudiantePorDocumento,
   eliminarEstudiante,
   eliminarEstudiantePorDocumento,
+  reactivarEstudiante,
+  reactivarEstudiantePorDocumento,
 };

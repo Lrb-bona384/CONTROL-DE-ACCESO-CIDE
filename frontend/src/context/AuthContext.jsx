@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+﻿import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 const AuthContext = createContext(null);
 
@@ -7,13 +7,38 @@ const USER_KEY = "auth_user";
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "scroll", "touchstart"];
 
+function safeStorageGet(storage, key) {
+  try {
+    return storage.getItem(key) || "";
+  } catch (error) {
+    console.warn(`No se pudo leer ${key} desde storage`, error);
+    return "";
+  }
+}
+
+function safeStorageSet(storage, key, value) {
+  try {
+    storage.setItem(key, value);
+  } catch (error) {
+    console.warn(`No se pudo guardar ${key} en storage`, error);
+  }
+}
+
+function safeStorageRemove(storage, key) {
+  try {
+    storage.removeItem(key);
+  } catch (error) {
+    console.warn(`No se pudo limpiar ${key} del storage`, error);
+  }
+}
+
 function readSessionValue(key) {
-  return sessionStorage.getItem(key) || localStorage.getItem(key) || "";
+  return safeStorageGet(sessionStorage, key) || safeStorageGet(localStorage, key) || "";
 }
 
 function clearLegacyLocalStorage() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  safeStorageRemove(localStorage, TOKEN_KEY);
+  safeStorageRemove(localStorage, USER_KEY);
 }
 
 async function apiRequest(url, options = {}, token) {
@@ -44,7 +69,7 @@ async function apiRequest(url, options = {}, token) {
   }
 
   if (!response.ok) {
-    const error = new Error(data.error || data.message || "Error de autenticacion");
+    const error = new Error(data.error || data.message || "Error de autenticación");
     error.status = response.status;
     error.data = data;
     throw error;
@@ -71,15 +96,15 @@ export function AuthProvider({ children }) {
   const inactivityTimerRef = useRef(null);
 
   const clearSession = useCallback(() => {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
+    safeStorageRemove(sessionStorage, TOKEN_KEY);
+    safeStorageRemove(sessionStorage, USER_KEY);
     clearLegacyLocalStorage();
   }, []);
 
   const persistSession = useCallback((nextToken, nextUser) => {
     if (!nextToken || !nextUser) return;
-    sessionStorage.setItem(TOKEN_KEY, nextToken);
-    sessionStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    safeStorageSet(sessionStorage, TOKEN_KEY, nextToken);
+    safeStorageSet(sessionStorage, USER_KEY, JSON.stringify(nextUser));
     clearLegacyLocalStorage();
   }, []);
 
@@ -167,7 +192,7 @@ export function AuthProvider({ children }) {
           await refreshUser({ soft: true });
         } catch (error) {
           if (error.status !== 401 && error.status !== 403) {
-            console.warn("No se pudo revalidar la sesion al recargar", error);
+            console.warn("No se pudo revalidar la sesión al recargar", error);
           }
         }
 
@@ -180,7 +205,7 @@ export function AuthProvider({ children }) {
         if (error.status === 401 || error.status === 403) {
           logout();
         } else {
-          console.warn("No se pudo revalidar la sesion al iniciar", error);
+          console.warn("No se pudo revalidar la sesión al iniciar", error);
         }
       } finally {
         if (!cancelled) {
@@ -247,3 +272,4 @@ export function useAuth() {
 
   return context;
 }
+
