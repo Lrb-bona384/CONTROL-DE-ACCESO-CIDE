@@ -3,6 +3,7 @@ const usuariosModel = require("../models/usuarios.model");
 const estudiantesModel = require("../models/estudiantes.model");
 const pool = require("../config/database");
 const { ROLES } = require("../constants/roles");
+const movimientosModel = require("../models/movimientos.model");
 
 const PLACA_REGEX = /^[A-Z]{3}\d{2}[A-Z]$/;
 const DOCUMENTO_REGEX = /^\d{8,10}$/;
@@ -28,6 +29,10 @@ function parseId(rawId) {
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : value;
+}
+
+function normalizeUsername(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : value;
 }
 
 function normalizePlate(value) {
@@ -163,8 +168,9 @@ async function listarUsuarios(_req, res, next) {
 async function crearUsuario(req, res, next) {
   const { username, password, role } = req.body || {};
   const normalizedRole = normalizeRole(role);
+  const normalizedUsername = normalizeUsername(username);
 
-  if (!username || typeof username !== "string") {
+  if (!normalizedUsername) {
     return res.status(400).json({ error: "username es requerido" });
   }
 
@@ -177,7 +183,7 @@ async function crearUsuario(req, res, next) {
   }
 
   try {
-    const existing = await usuariosModel.findByUsernameAnyStatus(username.trim());
+    const existing = await usuariosModel.findByUsernameAnyStatus(normalizedUsername);
 
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: "El usuario ya existe" });
@@ -185,7 +191,7 @@ async function crearUsuario(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const created = await usuariosModel.createUsuario({
-      username: username.trim(),
+      username: normalizedUsername,
       passwordHash,
       role: normalizedRole,
     });
@@ -200,7 +206,7 @@ async function crearUsuario(req, res, next) {
 }
 
 async function obtenerUsuarioPorUsername(req, res, next) {
-  const username = normalizeText(req.params.username);
+  const username = normalizeUsername(req.params.username);
 
   if (!username) {
     return res.status(400).json({ error: "username es requerido" });
@@ -230,7 +236,7 @@ async function actualizarUsuario(req, res, next) {
   const payload = {};
 
   if (typeof username === "string" && username.trim().length > 0) {
-    payload.username = username.trim();
+    payload.username = normalizeUsername(username);
   }
 
   if (typeof role === "string") {
@@ -279,7 +285,7 @@ async function actualizarUsuario(req, res, next) {
 }
 
 async function actualizarUsuarioPorUsername(req, res, next) {
-  const username = normalizeText(req.params.username);
+  const username = normalizeUsername(req.params.username);
 
   if (!username) {
     return res.status(400).json({ error: "username es requerido" });
@@ -307,6 +313,22 @@ async function eliminarUsuario(req, res, next) {
   }
 
   try {
+    const existing = await usuariosModel.findById(id);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const targetUser = existing.rows[0];
+
+    if (targetUser.username === "admin") {
+      return res.status(403).json({ error: "El admin principal no puede desactivarse" });
+    }
+
+    if (req.user?.id === targetUser.id) {
+      return res.status(403).json({ error: "No puedes desactivar tu propio usuario mientras la sesión está activa" });
+    }
+
     const deleted = await usuariosModel.deactivateUsuario(id);
 
     if (deleted.rows.length === 0) {
@@ -323,7 +345,7 @@ async function eliminarUsuario(req, res, next) {
 }
 
 async function eliminarUsuarioPorUsername(req, res, next) {
-  const username = normalizeText(req.params.username);
+  const username = normalizeUsername(req.params.username);
 
   if (!username) {
     return res.status(400).json({ error: "username es requerido" });
@@ -399,7 +421,7 @@ async function reactivarUsuario(req, res, next) {
 }
 
 async function reactivarUsuarioPorUsername(req, res, next) {
-  const username = normalizeText(req.params.username);
+  const username = normalizeUsername(req.params.username);
 
   if (!username) {
     return res.status(400).json({ error: "username es requerido" });
@@ -537,6 +559,30 @@ async function eliminarEstudiante(req, res, next) {
 
   try {
     await client.query("BEGIN");
+    const existing = await estudiantesModel.findById(id);
+
+    if (existing.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    const student = existing.rows[0];
+    const lastMovement = await movimientosModel.getLastByEstudianteId(client, id);
+
+    if (lastMovement.rows.length > 0 && lastMovement.rows[0].tipo === "ENTRADA") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        error: "El estudiante sigue dentro del campus. Registra su salida antes de desactivarlo.",
+        code: "STUDENT_INSIDE_CAMPUS",
+        estudiante: {
+          id: student.estudiante_id,
+          documento: student.documento,
+          nombre: student.nombre,
+          placa: student.placa,
+        },
+      });
+    }
+
     const deleted = await estudiantesModel.softDeleteById(client, id);
 
     if (deleted.rows.length === 0) {
@@ -580,6 +626,48 @@ async function eliminarEstudiantePorDocumento(req, res, next) {
     return eliminarEstudiante(req, res, next);
   } catch (error) {
     return next(error);
+  }
+}
+
+async function obtenerEstadoDesactivacionEstudiante(req, res, next) {
+  const documento = normalizeText(req.params.documento);
+
+  if (!documento) {
+    return res.status(400).json({ error: "documento es requerido" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    const existing = await estudiantesModel.findByDocumento(documento);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    const student = existing.rows[0];
+    const studentId = student.estudiante_id || student.id;
+    const lastMovement = await movimientosModel.getLastByEstudianteId(client, studentId);
+    const insideCampus = lastMovement.rows.length > 0 && lastMovement.rows[0].tipo === "ENTRADA";
+
+    return res.status(200).json({
+      estudiante: {
+        id: student.estudiante_id,
+        documento: student.documento,
+        nombre: student.nombre,
+        placa: student.placa,
+      },
+      insideCampus,
+      canDeactivate: !insideCampus,
+      lastMovement: lastMovement.rows[0]?.tipo || null,
+      message: insideCampus
+        ? "El estudiante está dentro del campus. Registra su salida antes de desactivarlo."
+        : "El estudiante está fuera del campus y puede desactivarse.",
+    });
+  } catch (error) {
+    return next(error);
+  } finally {
+    client.release();
   }
 }
 
@@ -640,6 +728,62 @@ async function reactivarEstudiantePorDocumento(req, res, next) {
   }
 }
 
+async function registrarSalidaEstudianteAdmin(req, res, next) {
+  const documento = normalizeText(req.params.documento);
+
+  if (!documento) {
+    return res.status(400).json({ error: "documento es requerido" });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const existing = await estudiantesModel.findByDocumento(documento);
+
+    if (existing.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Estudiante no encontrado" });
+    }
+
+    const student = existing.rows[0];
+    const studentId = student.estudiante_id || student.id;
+    const lastMovement = await movimientosModel.getLastByEstudianteId(client, studentId);
+
+    if (lastMovement.rows.length === 0 || lastMovement.rows[0].tipo !== "ENTRADA") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "El estudiante ya está fuera del campus. Desactívalo normalmente." });
+    }
+
+    const salida = await movimientosModel.createMovimiento(client, studentId, "SALIDA", {
+      actorUserId: req.user?.id || null,
+    });
+
+    await client.query("COMMIT");
+    return res.status(200).json({
+      message: "Salida registrada correctamente. Ya puedes desactivar al estudiante.",
+      movimiento: salida.rows[0],
+      estudiante: {
+        id: student.estudiante_id,
+        documento: student.documento,
+        nombre: student.nombre,
+        placa: student.placa,
+      },
+    });
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (_) {
+      // no-op
+    }
+
+    return next(error);
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   listarUsuarios,
   listarEstudiantesAdmin,
@@ -657,6 +801,9 @@ module.exports = {
   actualizarEstudiantePorDocumento,
   eliminarEstudiante,
   eliminarEstudiantePorDocumento,
+  obtenerEstadoDesactivacionEstudiante,
   reactivarEstudiante,
   reactivarEstudiantePorDocumento,
+  registrarSalidaEstudianteAdmin,
+  registrarSalidaYDesactivarEstudiante: registrarSalidaEstudianteAdmin,
 };

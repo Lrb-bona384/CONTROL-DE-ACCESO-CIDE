@@ -8,7 +8,7 @@ const initialForm = {
 };
 
 export default function Admin() {
-  const { apiRequest } = useAuth();
+  const { apiRequest, user } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
   const [error, setError] = useState("");
@@ -17,9 +17,22 @@ export default function Admin() {
   const [form, setForm] = useState(initialForm);
   const [userDeleteTarget, setUserDeleteTarget] = useState(null);
   const [userRestoreTarget, setUserRestoreTarget] = useState(null);
+  const [userPasswordTarget, setUserPasswordTarget] = useState(null);
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null);
   const [studentRestoreTarget, setStudentRestoreTarget] = useState(null);
   const [studentFilter, setStudentFilter] = useState("");
+  const [studentDeleteIssue, setStudentDeleteIssue] = useState("");
+  const [studentDeleteStatus, setStudentDeleteStatus] = useState({
+    checking: false,
+    insideCampus: false,
+    canDeactivate: true,
+    lastMovement: null,
+    message: "",
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    password: "",
+    confirmPassword: "",
+  });
 
   async function loadUsers() {
     const data = await apiRequest("/admin/usuarios");
@@ -96,10 +109,22 @@ export default function Admin() {
       });
 
       setStatus(`Estudiante ${data.estudiante.nombre} desactivado correctamente.`);
+      setStudentDeleteIssue("");
       setStudentDeleteTarget(null);
       await loadStudents();
     } catch (err) {
-      setError(err.message);
+      if (err.code === "STUDENT_INSIDE_CAMPUS") {
+        setStudentDeleteIssue(err.message);
+        setStudentDeleteStatus((current) => ({
+          ...current,
+          insideCampus: true,
+          canDeactivate: false,
+          message: err.message,
+          lastMovement: "ENTRADA",
+        }));
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -171,6 +196,70 @@ export default function Admin() {
     }
   }
 
+  async function handleRegisterExitAndDeleteStudent() {
+    if (!studentDeleteTarget) return;
+
+    setLoading(true);
+    setError("");
+    setStatus("");
+
+    try {
+      const data = await apiRequest(
+        `/admin/estudiantes/documento/${encodeURIComponent(studentDeleteTarget.documento)}/registrar-salida`,
+        { method: "POST" }
+      );
+
+      setStatus(`Salida registrada para ${data.estudiante.nombre}. Ya puedes confirmar la desactivación.`);
+      setStudentDeleteIssue("");
+      setStudentDeleteStatus({
+        checking: false,
+        insideCampus: false,
+        canDeactivate: true,
+        lastMovement: "SALIDA",
+        message: "La salida ya fue registrada. Ahora puedes desactivar al estudiante con seguridad.",
+      });
+      await loadStudents();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!userPasswordTarget) return;
+
+    if (!passwordForm.password || passwordForm.password.length < 8) {
+      setError("La nueva contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    if (passwordForm.password !== passwordForm.confirmPassword) {
+      setError("La confirmación de contraseña no coincide.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setStatus("");
+
+    try {
+      const data = await apiRequest(`/admin/usuarios/${userPasswordTarget.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ password: passwordForm.password }),
+      });
+
+      setStatus(`Contraseña actualizada para ${data.usuario.username}.`);
+      setPasswordForm({ password: "", confirmPassword: "" });
+      setUserPasswordTarget(null);
+      await loadUsers();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filteredStudents = useMemo(() => {
     const term = studentFilter.trim().toLowerCase();
     if (!term) return estudiantes;
@@ -188,6 +277,66 @@ export default function Admin() {
       return fields.some((value) => String(value || "").toLowerCase().includes(term));
     });
   }, [estudiantes, studentFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStudentDeleteStatus() {
+      if (!studentDeleteTarget) {
+        setStudentDeleteIssue("");
+        setStudentDeleteStatus({
+          checking: false,
+          insideCampus: false,
+          canDeactivate: true,
+          lastMovement: null,
+          message: "",
+        });
+        return;
+      }
+
+      setStudentDeleteIssue("");
+      setStudentDeleteStatus({
+        checking: true,
+        insideCampus: false,
+        canDeactivate: true,
+        lastMovement: null,
+        message: "Verificando si el estudiante sigue dentro del campus...",
+      });
+
+      try {
+        const data = await apiRequest(
+          `/admin/estudiantes/documento/${encodeURIComponent(studentDeleteTarget.documento)}/estado-desactivacion`
+        );
+
+        if (!cancelled) {
+          setStudentDeleteStatus({
+            checking: false,
+            insideCampus: Boolean(data.insideCampus),
+            canDeactivate: Boolean(data.canDeactivate),
+            lastMovement: data.lastMovement || null,
+            message: data.message || "",
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setStudentDeleteIssue(err.message);
+          setStudentDeleteStatus({
+            checking: false,
+            insideCampus: false,
+            canDeactivate: true,
+            lastMovement: null,
+            message: "",
+          });
+        }
+      }
+    }
+
+    loadStudentDeleteStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiRequest, studentDeleteTarget]);
 
   return (
     <section className="page">
@@ -281,32 +430,49 @@ export default function Admin() {
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.id}</td>
-                    <td>{user.username}</td>
-                    <td>{user.role}</td>
-                    <td>{user.is_active ? "Activo" : "Desactivado"}</td>
-                    <td>{user.created_at ? new Date(user.created_at).toLocaleString("es-CO") : "-"}</td>
-                    <td>{user.updated_at ? new Date(user.updated_at).toLocaleString("es-CO") : "-"}</td>
+                {usuarios.map((account) => (
+                  <tr key={account.id}>
+                    <td>{account.id}</td>
+                    <td>{account.username}</td>
+                    <td>{account.role}</td>
+                    <td>{account.is_active ? "Activo" : "Desactivado"}</td>
+                    <td>{account.created_at ? new Date(account.created_at).toLocaleString("es-CO") : "-"}</td>
+                    <td>{account.updated_at ? new Date(account.updated_at).toLocaleString("es-CO") : "-"}</td>
                     <td>
-                      {user.is_active ? (
-                        <button
-                          type="button"
-                          className="danger-button"
-                          onClick={() => setUserDeleteTarget(user)}
-                        >
-                          Desactivar
-                        </button>
-                      ) : (
+                      <div className="button-strip">
                         <button
                           type="button"
                           className="ghost-button"
-                          onClick={() => setUserRestoreTarget(user)}
+                          onClick={() => {
+                            setError("");
+                            setPasswordForm({ password: "", confirmPassword: "" });
+                            setUserPasswordTarget(account);
+                          }}
                         >
-                          Reactivar
+                          Cambiar contraseña
                         </button>
-                      )}
+                        {account.username === "admin" ? (
+                          <span className="movement-pill entry">Protegido</span>
+                        ) : account.id === user?.id ? (
+                          <span className="movement-pill exit">Sesión actual</span>
+                        ) : account.is_active ? (
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() => setUserDeleteTarget(account)}
+                          >
+                            Desactivar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="ghost-button"
+                            onClick={() => setUserRestoreTarget(account)}
+                          >
+                            Reactivar
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -441,6 +607,64 @@ export default function Admin() {
         </div>
       ) : null}
 
+      {userPasswordTarget ? (
+        <div className="modal" aria-hidden="false">
+          <div className="modal-backdrop" onClick={() => setUserPasswordTarget(null)} />
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="password-user-title">
+            <p className="eyebrow">Administración de acceso</p>
+            <h3 id="password-user-title">Cambiar contraseña de usuario</h3>
+            <p className="modal-copy">
+              Esta acción solo está disponible desde administración. Define una nueva contraseña segura para el usuario seleccionado.
+            </p>
+            <pre className="modal-details">{[
+              `id: ${userPasswordTarget.id || "-"}`,
+              `usuario: ${userPasswordTarget.username || "-"}`,
+              `rol: ${userPasswordTarget.role || "-"}`,
+            ].join("\n")}</pre>
+            <div className="stack-form">
+              <label>
+                Nueva contraseña
+                <input
+                  type="password"
+                  value={passwordForm.password}
+                  onChange={(event) => setPasswordForm((current) => ({ ...current, password: event.target.value }))}
+                  placeholder="Mínimo 8 caracteres"
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </label>
+              <label>
+                Confirmar contraseña
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                  placeholder="Repite la nueva contraseña"
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </label>
+            </div>
+            <div className="button-strip">
+              <button type="button" disabled={loading} onClick={handleChangePassword}>
+                {loading ? "Actualizando..." : "Guardar contraseña"}
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                disabled={loading}
+                onClick={() => {
+                  setPasswordForm({ password: "", confirmPassword: "" });
+                  setUserPasswordTarget(null);
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {userRestoreTarget ? (
         <div className="modal" aria-hidden="false">
           <div className="modal-backdrop" onClick={() => setUserRestoreTarget(null)} />
@@ -479,34 +703,73 @@ export default function Admin() {
 
       {studentDeleteTarget ? (
         <div className="modal" aria-hidden="false">
-          <div className="modal-backdrop" onClick={() => setStudentDeleteTarget(null)} />
+          <div className="modal-backdrop" onClick={() => {
+            setStudentDeleteIssue("");
+            setStudentDeleteStatus({
+              checking: false,
+              insideCampus: false,
+              canDeactivate: true,
+              lastMovement: null,
+              message: "",
+            });
+            setStudentDeleteTarget(null);
+          }} />
           <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="delete-student-title">
             <p className="eyebrow">Confirmación requerida</p>
             <h3 id="delete-student-title">Desactivar estudiante</h3>
             <p className="modal-copy">
               Esta acción desactivará el estudiante, pero conservará sus movimientos y el historial del sistema.
             </p>
+            {studentDeleteStatus.message ? (
+              <div className={studentDeleteStatus.insideCampus ? "form-error" : "auth-status"}>
+                {studentDeleteStatus.message}
+              </div>
+            ) : null}
+            {studentDeleteIssue ? (
+              <div className="form-error">{studentDeleteIssue}</div>
+            ) : null}
             <pre className="modal-details">{[
               `documento: ${studentDeleteTarget.documento || "-"}`,
               `nombre: ${studentDeleteTarget.nombre || "-"}`,
               `placa: ${studentDeleteTarget.placa || "-"}`,
               `vigencia: ${studentDeleteTarget.vigencia ? "Activa" : "Inactiva"}`,
+              `estado_campus: ${studentDeleteStatus.insideCampus ? "Dentro del campus" : "Fuera del campus"}`,
+              `último_movimiento: ${studentDeleteStatus.lastMovement || "Sin registro"}`,
               `actualizado_por: ${studentDeleteTarget.updated_by_username || "Sin responsable"}`,
             ].join("\n")}</pre>
             <div className="button-strip">
               <button
                 type="button"
                 className="danger-button"
-                disabled={loading}
+                disabled={loading || studentDeleteStatus.checking || !studentDeleteStatus.canDeactivate}
                 onClick={handleConfirmDeleteStudent}
               >
                 {loading ? "Desactivando..." : "Confirmar desactivación"}
               </button>
+              {studentDeleteStatus.insideCampus ? (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleRegisterExitAndDeleteStudent}
+                >
+                  {loading ? "Registrando..." : "Sí, registrar salida"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="ghost-button"
                 disabled={loading}
-                onClick={() => setStudentDeleteTarget(null)}
+                onClick={() => {
+                  setStudentDeleteIssue("");
+                  setStudentDeleteStatus({
+                    checking: false,
+                    insideCampus: false,
+                    canDeactivate: true,
+                    lastMovement: null,
+                    message: "",
+                  });
+                  setStudentDeleteTarget(null);
+                }}
               >
                 Cancelar
               </button>
