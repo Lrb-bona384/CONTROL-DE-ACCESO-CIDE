@@ -7,10 +7,45 @@ const initialForm = {
   role: "CONSULTA",
 };
 
+const REJECTION_TEMPLATES = [
+  {
+    value: "DOCUMENTACION_INCOMPLETA",
+    label: "Documentación incompleta",
+    message: "La solicitud fue rechazada porque la documentación adjunta está incompleta o no permite validar la información requerida.",
+  },
+  {
+    value: "DOCUMENTACION_ERRONEA",
+    label: "Documentación adjunta errónea",
+    message: "La solicitud fue rechazada porque la documentación adjunta no corresponde al estudiante o presenta inconsistencias frente a los datos registrados.",
+  },
+  {
+    value: "QR_INVALIDO",
+    label: "QR institucional no válido",
+    message: "La solicitud fue rechazada porque el QR institucional no corresponde al estudiante o no cumple con el formato válido de SIUC.",
+  },
+  {
+    value: "PLACAS_INCONSISTENTES",
+    label: "Inconsistencia en vehículos",
+    message: "La solicitud fue rechazada porque las placas o tarjetas de propiedad registradas presentan inconsistencias y deben ser corregidas.",
+  },
+  {
+    value: "CORREO_INVALIDO",
+    label: "Correo institucional inválido",
+    message: "La solicitud fue rechazada porque el correo institucional registrado no cumple con las condiciones requeridas para el proceso.",
+  },
+  {
+    value: "OTRO",
+    label: "Otro motivo",
+    message: "",
+  },
+];
+
 export default function Admin() {
   const { apiRequest, user } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [adminView, setAdminView] = useState("gestion");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,6 +56,7 @@ export default function Admin() {
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null);
   const [studentRestoreTarget, setStudentRestoreTarget] = useState(null);
   const [studentFilter, setStudentFilter] = useState("");
+  const [requestFilter, setRequestFilter] = useState("PENDIENTE");
   const [studentDeleteIssue, setStudentDeleteIssue] = useState("");
   const [studentDeleteStatus, setStudentDeleteStatus] = useState({
     checking: false,
@@ -33,6 +69,13 @@ export default function Admin() {
     password: "",
     confirmPassword: "",
   });
+  const [requestApproveTarget, setRequestApproveTarget] = useState(null);
+  const [requestRejectTarget, setRequestRejectTarget] = useState(null);
+  const [requestReviewForm, setRequestReviewForm] = useState({
+    notas_revision: "",
+    motivo_rechazo: "",
+    rejection_template: "",
+  });
 
   async function loadUsers() {
     const data = await apiRequest("/admin/usuarios");
@@ -44,6 +87,12 @@ export default function Admin() {
     setEstudiantes(data.estudiantes || []);
   }
 
+  async function loadRequests(nextState = requestFilter) {
+    const query = nextState && nextState !== "TODAS" ? `?estado=${encodeURIComponent(nextState)}` : "";
+    const data = await apiRequest(`/solicitudes-inscripcion${query}`);
+    setSolicitudes(data.solicitudes || []);
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -51,14 +100,16 @@ export default function Admin() {
       setError("");
 
       try {
-        const [usersData, studentsData] = await Promise.all([
+        const [usersData, studentsData, requestsData] = await Promise.all([
           apiRequest("/admin/usuarios"),
           apiRequest("/admin/estudiantes"),
+          apiRequest("/solicitudes-inscripcion?estado=PENDIENTE"),
         ]);
 
         if (!cancelled) {
           setUsuarios(usersData.usuarios || []);
           setEstudiantes(studentsData.estudiantes || []);
+          setSolicitudes(requestsData.solicitudes || []);
         }
       } catch (err) {
         if (!cancelled) {
@@ -73,6 +124,30 @@ export default function Admin() {
       cancelled = true;
     };
   }, [apiRequest]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshRequests() {
+      try {
+        const query = requestFilter && requestFilter !== "TODAS" ? `?estado=${encodeURIComponent(requestFilter)}` : "";
+        const data = await apiRequest(`/solicitudes-inscripcion${query}`);
+        if (!cancelled) {
+          setSolicitudes(data.solicitudes || []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message);
+        }
+      }
+    }
+
+    refreshRequests();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiRequest, requestFilter]);
 
   async function handleCreateUser(event) {
     event.preventDefault();
@@ -260,6 +335,62 @@ export default function Admin() {
     }
   }
 
+  async function handleApproveRequest() {
+    if (!requestApproveTarget) return;
+
+    setLoading(true);
+    setError("");
+    setStatus("");
+
+    try {
+      const data = await apiRequest(`/solicitudes-inscripcion/${requestApproveTarget.id}/aprobar`, {
+        method: "PATCH",
+        body: JSON.stringify({ notas_revision: requestReviewForm.notas_revision }),
+      });
+
+      setStatus(`Solicitud ${data.solicitud.id} aprobada y estudiante creado correctamente.`);
+      setRequestApproveTarget(null);
+      setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
+      await Promise.all([loadStudents(), loadRequests()]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRejectRequest() {
+    if (!requestRejectTarget) return;
+
+    if (!requestReviewForm.motivo_rechazo.trim()) {
+      setError("Debes indicar el motivo del rechazo.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setStatus("");
+
+    try {
+      const data = await apiRequest(`/solicitudes-inscripcion/${requestRejectTarget.id}/rechazar`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          motivo_rechazo: requestReviewForm.motivo_rechazo,
+          notas_revision: requestReviewForm.notas_revision,
+        }),
+      });
+
+      setStatus(`Solicitud ${data.solicitud.id} rechazada correctamente.`);
+      setRequestRejectTarget(null);
+      setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
+      await loadRequests();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filteredStudents = useMemo(() => {
     const term = studentFilter.trim().toLowerCase();
     if (!term) return estudiantes;
@@ -277,6 +408,22 @@ export default function Admin() {
       return fields.some((value) => String(value || "").toLowerCase().includes(term));
     });
   }, [estudiantes, studentFilter]);
+
+  const visibleRequests = useMemo(() => solicitudes, [solicitudes]);
+
+  function applyRejectionTemplate(templateValue) {
+    const template = REJECTION_TEMPLATES.find((item) => item.value === templateValue);
+    setRequestReviewForm((current) => ({
+      ...current,
+      rejection_template: templateValue,
+      motivo_rechazo: template ? template.message : "",
+    }));
+  }
+
+  function openRequestDocument(url) {
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -348,9 +495,32 @@ export default function Admin() {
         </p>
       </header>
 
+      <div className="admin-view-tabs" role="tablist" aria-label={"Secciones de administración"}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={adminView === "gestion"}
+          className={adminView === "gestion" ? "admin-view-tab is-active" : "admin-view-tab"}
+          onClick={() => setAdminView("gestion")}
+        >
+          {"Gestión"}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={adminView === "admisiones"}
+          className={adminView === "admisiones" ? "admin-view-tab is-active" : "admin-view-tab"}
+          onClick={() => setAdminView("admisiones")}
+        >
+          Admisiones
+        </button>
+      </div>
+
       {error ? <div className="form-error">{error}</div> : null}
       {status ? <div className="form-success">{status}</div> : null}
 
+      {adminView === "gestion" ? (
+        <>
       <div className="cards-grid cards-grid--single">
         <article className="info-card">
           <h3>Crear nuevo usuario</h3>
@@ -566,9 +736,143 @@ export default function Admin() {
       <article className="info-card">
         <h3>Estado del módulo admin</h3>
         <div className="empty-state">
-          Aquí ADMIN ya puede crear usuarios, revisar estudiantes y desactivar usuarios o estudiantes sin perder historial.
+          Aquí ADMIN ya puede crear usuarios, revisar estudiantes, desactivar o reactivar registros y aprobar solicitudes de inscripción sin perder historial.
         </div>
       </article>
+        </>
+      ) : null}
+
+      {adminView === "admisiones" ? (
+        <>
+          <article className="info-card">
+            <h3>Admisiones y aprobaciones</h3>
+            <div className="empty-state">
+              {"Aquí ADMIN revisa solicitudes de inscripción, aprueba o rechaza registros y controla el flujo previo a la activación del estudiante."}
+            </div>
+          </article>
+
+      <section className="table-panel">
+        <div className="table-panel__header admin-table-header">
+          <div>
+            <p className="eyebrow">Solicitudes de inscripción</p>
+            <h3>Bandeja de aprobación administrativa</h3>
+          </div>
+          <div className="admin-table-tools">
+            <select value={requestFilter} onChange={(event) => setRequestFilter(event.target.value)}>
+              <option value="PENDIENTE">Pendientes</option>
+              <option value="APROBADA">Aprobadas</option>
+              <option value="RECHAZADA">Rechazadas</option>
+              <option value="EXPIRADA">Expiradas</option>
+              <option value="TODAS">Todas</option>
+            </select>
+            <span className="table-count">{visibleRequests.length} visible(s)</span>
+          </div>
+        </div>
+
+        {visibleRequests.length === 0 ? (
+          <div className="empty-state">No hay solicitudes para el filtro seleccionado.</div>
+        ) : (
+          <div className="table-wrap table-wrap--scrollable table-wrap--panel">
+            <table className="data-table request-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Estudiante</th>
+                  <th>Correo</th>
+                  <th>Principal</th>
+                  <th>Secundaria</th>
+                  <th>Adjuntos</th>
+                  <th>Estado</th>
+                  <th>Expira</th>
+                  <th>Revisión</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRequests.map((request) => (
+                  <tr key={request.id}>
+                    <td>{request.id}</td>
+                    <td>
+                      <div className="movement-cell-strong">
+                        <span className="movement-main">{request.nombre}</span>
+                        <span className="movement-sub">DOC {request.documento} · {request.carrera}</span>
+                      </div>
+                    </td>
+                    <td>{request.correo_institucional}</td>
+                    <td>
+                      <div className="movement-cell-strong">
+                        <span className="movement-main">{request.placa}</span>
+                        <span className="movement-sub">{request.color}</span>
+                      </div>
+                    </td>
+                    <td>
+                      {request.placa_secundaria ? (
+                        <div className="movement-cell-strong">
+                          <span className="movement-main">{request.placa_secundaria}</span>
+                          <span className="movement-sub">{request.color_secundaria || "-"}</span>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>
+                      <div className="movement-cell-strong">
+                        <span className="movement-sub">QR: {request.qr_imagen_url}</span>
+                        <span className="movement-sub">Tarjeta 1: {request.tarjeta_propiedad_principal_url}</span>
+                        <span className="movement-sub">Tarjeta 2: {request.tarjeta_propiedad_secundaria_url || "-"}</span>
+                      </div>
+                    </td>
+                    <td>{request.estado}</td>
+                    <td>{request.expires_at ? new Date(request.expires_at).toLocaleString("es-CO") : "-"}</td>
+                    <td>
+                      <div className="movement-cell-strong">
+                        <span className="movement-sub">{request.reviewed_by_username || "Sin revisar"}</span>
+                        <span className="movement-sub">{request.reviewed_at ? new Date(request.reviewed_at).toLocaleString("es-CO") : "-"}</span>
+                      </div>
+                    </td>
+                    <td>
+                      {request.estado === "PENDIENTE" ? (
+                        <div className="button-strip">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
+                              setRequestApproveTarget(request);
+                            }}
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() => {
+                              setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
+                              setRequestRejectTarget(request);
+                            }}
+                          >
+                            Rechazar
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="movement-pill entry">Procesada</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+          <article className="info-card">
+            <h3>{"Estado del módulo de admisiones"}</h3>
+            <div className="empty-state">
+              {"Aquí ADMIN revisa las solicitudes, deja trazabilidad de la decisión y prepara el flujo de correo y expiración automática."}
+            </div>
+          </article>
+        </>
+      ) : null}
 
       {userDeleteTarget ? (
         <div className="modal" aria-hidden="false">
@@ -807,6 +1111,132 @@ export default function Admin() {
                 disabled={loading}
                 onClick={() => setStudentRestoreTarget(null)}
               >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {requestApproveTarget ? (
+        <div className="modal" aria-hidden="false">
+          <div className="modal-backdrop" onClick={() => setRequestApproveTarget(null)} />
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="approve-request-title">
+            <p className="eyebrow">Validación administrativa</p>
+            <h3 id="approve-request-title">Aprobar solicitud de inscripción</h3>
+            <p className="modal-copy">
+              Al aprobar esta solicitud se creará el estudiante activo con sus motos registradas y quedará trazabilidad del revisor.
+            </p>
+            <pre className="modal-details">{[
+              `id: ${requestApproveTarget.id}`,
+              `documento: ${requestApproveTarget.documento}`,
+              `nombre: ${requestApproveTarget.nombre}`,
+              `correo: ${requestApproveTarget.correo_institucional}`,
+              `principal: ${requestApproveTarget.placa} · ${requestApproveTarget.color}`,
+              `secundaria: ${requestApproveTarget.placa_secundaria || "-"} · ${requestApproveTarget.color_secundaria || "-"}`,
+              `adjunto QR: ${requestApproveTarget.qr_imagen_url}`,
+            ].join("\n")}</pre>
+            <div className="button-strip">
+              <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestApproveTarget.qr_imagen_url)}>
+                Ver QR adjunto
+              </button>
+              <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestApproveTarget.tarjeta_propiedad_principal_url)}>
+                Ver tarjeta principal
+              </button>
+              {requestApproveTarget.tarjeta_propiedad_secundaria_url ? (
+                <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestApproveTarget.tarjeta_propiedad_secundaria_url)}>
+                  Ver tarjeta secundaria
+                </button>
+              ) : null}
+            </div>
+            <label>
+              Notas de revisión
+              <input
+                type="text"
+                value={requestReviewForm.notas_revision}
+                onChange={(event) => setRequestReviewForm((current) => ({ ...current, notas_revision: event.target.value }))}
+                placeholder="Observación interna opcional"
+              />
+            </label>
+            <div className="button-strip">
+              <button type="button" disabled={loading} onClick={handleApproveRequest}>
+                {loading ? "Aprobando..." : "Confirmar aprobación"}
+              </button>
+              <button type="button" className="ghost-button" disabled={loading} onClick={() => setRequestApproveTarget(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {requestRejectTarget ? (
+        <div className="modal" aria-hidden="false">
+          <div className="modal-backdrop" onClick={() => setRequestRejectTarget(null)} />
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="reject-request-title">
+            <p className="eyebrow">Validación administrativa</p>
+            <h3 id="reject-request-title">Rechazar solicitud de inscripción</h3>
+            <p className="modal-copy">
+              Selecciona un motivo predefinido o ajusta el mensaje final. El sistema enviará la respuesta al correo institucional del solicitante.
+            </p>
+            <pre className="modal-details">{[
+              `id: ${requestRejectTarget.id}`,
+              `documento: ${requestRejectTarget.documento}`,
+              `nombre: ${requestRejectTarget.nombre}`,
+              `correo: ${requestRejectTarget.correo_institucional}`,
+            ].join("\n")}</pre>
+            <div className="stack-form">
+              <label>
+                Mensaje predefinido de rechazo
+                <select
+                  value={requestReviewForm.rejection_template}
+                  onChange={(event) => applyRejectionTemplate(event.target.value)}
+                >
+                  <option value="">Selecciona un motivo</option>
+                  {REJECTION_TEMPLATES.map((template) => (
+                    <option key={template.value} value={template.value}>
+                      {template.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Mensaje final de rechazo
+                <textarea
+                  value={requestReviewForm.motivo_rechazo}
+                  onChange={(event) => setRequestReviewForm((current) => ({ ...current, motivo_rechazo: event.target.value }))}
+                  placeholder="Escribe o ajusta el mensaje que recibirá el solicitante"
+                  rows={4}
+                />
+              </label>
+              <label>
+                Notas de revisión
+                <input
+                  type="text"
+                  value={requestReviewForm.notas_revision}
+                  onChange={(event) => setRequestReviewForm((current) => ({ ...current, notas_revision: event.target.value }))}
+                  placeholder="Detalle adicional opcional"
+                />
+              </label>
+            </div>
+            <div className="button-strip">
+              <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestRejectTarget.qr_imagen_url)}>
+                Ver QR adjunto
+              </button>
+              <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestRejectTarget.tarjeta_propiedad_principal_url)}>
+                Ver tarjeta principal
+              </button>
+              {requestRejectTarget.tarjeta_propiedad_secundaria_url ? (
+                <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestRejectTarget.tarjeta_propiedad_secundaria_url)}>
+                  Ver tarjeta secundaria
+                </button>
+              ) : null}
+            </div>
+            <div className="button-strip">
+              <button type="button" className="danger-button" disabled={loading} onClick={handleRejectRequest}>
+                {loading ? "Rechazando..." : "Confirmar rechazo"}
+              </button>
+              <button type="button" className="ghost-button" disabled={loading} onClick={() => setRequestRejectTarget(null)}>
                 Cancelar
               </button>
             </div>

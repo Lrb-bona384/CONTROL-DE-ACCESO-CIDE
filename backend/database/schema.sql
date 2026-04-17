@@ -1,4 +1,4 @@
--- Usuarios (admin/staff)
+﻿-- Usuarios (admin/staff)
 CREATE TABLE IF NOT EXISTS usuarios (
   id SERIAL PRIMARY KEY,
   username VARCHAR(50) UNIQUE NOT NULL,
@@ -78,3 +78,69 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_motocicletas_estudiante_tipo_activa
 CREATE UNIQUE INDEX IF NOT EXISTS uq_motocicletas_placa_upper
   ON motocicletas(UPPER(TRIM(placa)))
   WHERE is_active = TRUE AND placa IS NOT NULL AND TRIM(placa) <> '';
+
+
+-- Visitantes
+CREATE TABLE IF NOT EXISTS visitantes (
+  id SERIAL PRIMARY KEY,
+  documento VARCHAR(30) UNIQUE NOT NULL,
+  nombre VARCHAR(120) NOT NULL,
+  celular VARCHAR(20) NOT NULL,
+  placa VARCHAR(15) NULL,
+  entidad VARCHAR(120) NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Movimientos de visitantes (separados del flujo de estudiantes)
+CREATE TABLE IF NOT EXISTS movimientos_visitantes (
+  id SERIAL PRIMARY KEY,
+  visitante_id INT NOT NULL REFERENCES visitantes(id) ON DELETE CASCADE,
+  tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('ENTRADA','SALIDA')),
+  motivo_visita VARCHAR(160) NULL,
+  persona_visitada VARCHAR(120) NULL,
+  observaciones TEXT NULL,
+  vehiculo_placa VARCHAR(15) NULL,
+  actor_user_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
+  fecha TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_movimientos_visitantes_actor_user_id ON movimientos_visitantes(actor_user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_visitantes_placa_upper
+  ON visitantes(UPPER(TRIM(placa)))
+  WHERE placa IS NOT NULL AND TRIM(placa) <> '';
+
+-- Solicitudes de inscripción previas a aprobación administrativa
+CREATE TABLE IF NOT EXISTS solicitudes_inscripcion (
+  id SERIAL PRIMARY KEY,
+  documento VARCHAR(30) NOT NULL,
+  qr_uid VARCHAR(120) NOT NULL,
+  nombre VARCHAR(120) NOT NULL,
+  carrera VARCHAR(120) NOT NULL,
+  correo_institucional VARCHAR(150) NOT NULL,
+  celular VARCHAR(20) NOT NULL,
+  placa VARCHAR(15) NOT NULL,
+  color VARCHAR(30) NOT NULL,
+  placa_secundaria VARCHAR(15) NULL,
+  color_secundaria VARCHAR(30) NULL,
+  qr_imagen_url TEXT NOT NULL,
+  tarjeta_propiedad_principal_url TEXT NOT NULL,
+  tarjeta_propiedad_secundaria_url TEXT NULL,
+  autoriza_tratamiento_datos BOOLEAN NOT NULL DEFAULT FALSE,
+  estado VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE' CHECK (estado IN ('PENDIENTE', 'APROBADA', 'RECHAZADA', 'EXPIRADA')),
+  motivo_rechazo TEXT NULL,
+  notas_revision TEXT NULL,
+  reviewed_by_user_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMP NULL,
+  expires_at TIMESTAMP NOT NULL DEFAULT (NOW() + INTERVAL '48 hours'),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_solicitudes_estado ON solicitudes_inscripcion(estado);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_documento ON solicitudes_inscripcion(documento);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_qr_uid ON solicitudes_inscripcion(qr_uid);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_correo ON solicitudes_inscripcion(correo_institucional);
+CREATE INDEX IF NOT EXISTS idx_solicitudes_reviewed_by ON solicitudes_inscripcion(reviewed_by_user_id);
+

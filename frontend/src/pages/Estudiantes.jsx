@@ -1,25 +1,12 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import QrScanner from "../components/QrScanner.jsx";
+import { CAREERS } from "../constants/careers.js";
 
 const PLATE_REGEX = /^[A-Z]{3}\d{2}[A-Z]$/;
 const DOCUMENT_REGEX = /^\d{8,10}$/;
 const CELULAR_REGEX = /^\d{10}$/;
 const CIDE_QR_REGEX = /^https:\/\/soe\.cide\.edu\.co\/verificar-estudiante\/[A-Za-z0-9]{1,8}$/;
-const CAREERS = [
-  "Tecnico Profesional en Mantenimiento de Sistemas Mecatronicos Industriales - 108538",
-  "Tecnico Profesional Procesos de Redes y Comunicaciones - 109639",
-  "Tecnico Profesional en Instalaciones Electricas para Sistemas Renovables - 108879",
-  "Tecnologo Electrico en Generacion y Gestion Eficiente de Energias Renovables - 108524",
-  "Tecnologo en Gestion de Sistemas Mecatronicos Industriales - 108525",
-  "Tecnologia en Gestion de Seguridad y Salud en el Trabajo - 108794",
-  "Tecnologia en Gestion de Sistemas Informaticos - 110400",
-  "Ingenieria Electrica - 108667",
-  "Ingenieria Mecatronica - 108787",
-  "Ingenieria Industrial - 108795",
-  "Ingenieria de Sistemas - 110399",
-  "Administrativos / Docente",
-];
 
 const initialForm = {
   documento: "",
@@ -721,3 +708,4 @@ export default function Estudiantes() {
     </section>
   );
 }
+

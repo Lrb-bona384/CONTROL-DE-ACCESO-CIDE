@@ -834,6 +834,29 @@ input:-webkit-autofill:active {
   line-height: 1.6;
 }
 
+.request-block {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fbfcfd 0%, #f5f8fa 100%);
+}
+
+.request-block__head {
+  display: grid;
+  gap: 4px;
+}
+
+.request-block__head strong {
+  color: var(--accent-strong);
+  font-size: 1rem;
+}
+
+.request-block__full {
+  grid-column: 1 / -1;
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -1051,6 +1074,10 @@ input:-webkit-autofill:active {
   min-width: 1360px;
 }
 
+.request-table {
+  min-width: 1580px;
+}
+
 .data-table {
   width: 100%;
   min-width: 980px;
@@ -1159,6 +1186,12 @@ input:-webkit-autofill:active {
   overflow: hidden;
 }
 
+.auth-shell--form {
+  align-items: start;
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
 .auth-backdrop {
   position: absolute;
   inset: 0;
@@ -1205,6 +1238,10 @@ input:-webkit-autofill:active {
   background: rgba(255, 255, 252, 0.99);
   box-shadow: 0 32px 78px rgba(13, 27, 20, 0.26);
   text-align: left;
+}
+
+.auth-card--wide {
+  width: min(100%, 960px);
 }
 
 .auth-card--loading {

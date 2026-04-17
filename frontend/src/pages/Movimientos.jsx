@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import QrScanner from "../components/QrScanner.jsx";
+import VisitantesMovimientos from "../components/VisitantesMovimientos.jsx";
 
 const CIDE_QR_REGEX = /^https:\/\/soe\.cide\.edu\.co\/verificar-estudiante\/[A-Za-z0-9]{1,8}$/;
 const DOCUMENT_REGEX = /^\d{8,10}$/;
@@ -19,6 +20,7 @@ function formatDate(value) {
 
 export default function Movimientos() {
   const { role, apiRequest } = useAuth();
+  const [movementView, setMovementView] = useState("estudiantes");
   const [insideCampus, setInsideCampus] = useState([]);
   const [allMovements, setAllMovements] = useState([]);
   const [registerMode, setRegisterMode] = useState("qr");
@@ -348,6 +350,29 @@ export default function Movimientos() {
         </p>
       </header>
 
+      <div className="admin-view-tabs" role="tablist" aria-label="Tipos de operación">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={movementView === "estudiantes"}
+          className={movementView === "estudiantes" ? "admin-view-tab is-active" : "admin-view-tab"}
+          onClick={() => setMovementView("estudiantes")}
+        >
+          Estudiantes
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={movementView === "visitantes"}
+          className={movementView === "visitantes" ? "admin-view-tab is-active" : "admin-view-tab"}
+          onClick={() => setMovementView("visitantes")}
+        >
+          Visitantes
+        </button>
+      </div>
+
+      {movementView === "estudiantes" ? (
+      <>
       {canRegister && (
         <div className="cards-grid cards-grid--wide-main movement-grid">
           <article className="info-card movement-register-card">
@@ -832,7 +857,15 @@ export default function Movimientos() {
           )}
         </article>
       </div>
+      </>
+      ) : (
+        <VisitantesMovimientos />
+      )}
     </section>
   );
 }
+
+
+
+
 
