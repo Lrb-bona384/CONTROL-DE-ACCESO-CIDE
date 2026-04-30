@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -6,7 +7,7 @@ const menuByRole = {
     { to: "/", label: "Inicio", icon: "IN" },
     { to: "/estudiantes", label: "Estudiantes", icon: "ES" },
     { to: "/movimientos", label: "Movimientos", icon: "MV" },
-    { to: "/admin", label: "Administraci\u00f3n", icon: "AD" },
+    { to: "/admin", label: "Administración", icon: "AD" },
   ],
   GUARDA: [
     { to: "/", label: "Inicio", icon: "IN" },
@@ -22,11 +23,12 @@ const menuByRole = {
 
 export default function Navbar() {
   const { user, logout, role } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
   const items = menuByRole[role] || [];
   const roleCopy = role === "ADMIN"
     ? "Acceso administrativo completo"
     : role === "GUARDA"
-      ? "Operaci\u00f3n de acceso y monitoreo"
+      ? "Operación de acceso y monitoreo"
       : "Consulta y seguimiento";
   const roleLabel = role === "ADMIN"
     ? "Rol activo: ADMIN"
@@ -37,25 +39,39 @@ export default function Navbar() {
         : "Rol activo: -";
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${menuOpen ? " sidebar--open" : " sidebar--collapsed"}`}>
       <div className="sidebar__brand">
         <h1 className="sidebar__wordmark">SIUC</h1>
         <p className="sidebar__submark">Sistema de Ingreso Universidad CIDE</p>
         <p className="sidebar__portal">Portal operativo</p>
       </div>
 
-      <div className="sidebar__toggle" aria-hidden="true">&#9776;</div>
+      <button
+        type="button"
+        className="sidebar__toggle"
+        aria-expanded={menuOpen}
+        aria-controls="siuc-sidebar-menu"
+        aria-label={menuOpen ? "Contraer menú" : "Desplegar menú"}
+        onClick={() => setMenuOpen((current) => !current)}
+      >
+        &#9776;
+      </button>
 
-      <nav className="sidebar__nav">
+      <nav
+        id="siuc-sidebar-menu"
+        className="sidebar__nav"
+        aria-label="Navegación principal"
+      >
         {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === "/"}
+            aria-label={item.label}
             className={({ isActive }) => `sidebar__link${isActive ? " active" : ""}`}
           >
             <span className="sidebar__icon" aria-hidden="true">{item.icon}</span>
-            {item.label}
+            <span className="sidebar__label">{item.label}</span>
           </NavLink>
         ))}
       </nav>
@@ -63,13 +79,14 @@ export default function Navbar() {
       <div className="sidebar__footer">
         <div className="sidebar__session">
           <span className="sidebar__welcome">Bienvenido</span>
-          <span className="sidebar__user">{user?.username || "Sin sesi\u00f3n"}</span>
+          <span className="sidebar__user">{user?.username || "Sin sesión"}</span>
           <span className="sidebar__role">{roleLabel}</span>
           <span className="sidebar__role-copy">{roleCopy}</span>
         </div>
 
-        <button type="button" className="sidebar__logout" onClick={logout}>
-          {"Cerrar sesi\u00f3n"}
+        <button type="button" className="sidebar__logout" aria-label="Cerrar sesión" onClick={logout}>
+          <span className="sidebar__logout-icon" aria-hidden="true">↪</span>
+          <span className="sidebar__logout-label">Cerrar sesión</span>
         </button>
       </div>
     </aside>
