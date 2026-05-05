@@ -1,5 +1,6 @@
 ﻿import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
+import ParkingCapacityAlert from "./components/ParkingCapacityAlert.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Login from "./pages/Login.jsx";
@@ -46,6 +47,7 @@ export default function App() {
           <strong>Portal operativo SIUC</strong>
           <span>{`${user?.username || "Sesión activa"} · ${role || "Sin rol"} · El acceso visible depende del rol autenticado.`}</span>
         </div>
+        <ParkingCapacityAlert />
         <Routes>
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Dashboard />} />

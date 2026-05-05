@@ -2,6 +2,7 @@
 const estudiantesModel = require("../models/estudiantes.model");
 const movimientosModel = require("../models/movimientos.model");
 const novedadesAccesoModel = require("../models/novedades-acceso.model");
+const campusCapacityModel = require("../models/campus-capacity.model");
 
 const QR_CIDE_REGEX = /^https:\/\/soe\.cide\.edu\.co\/verificar-estudiante\/[A-Za-z0-9]{1,8}$/;
 const NOVEDAD_MOTIVOS = new Set([
@@ -96,6 +97,22 @@ function validateNovedadPayload(body = {}, placa) {
   if (!TIPO_SOPORTE_VALIDO.has(tipoSoporte)) return "Debes indicar si validaste por TARJETA_PROPIEDAD o RUNT.";
 
   return null;
+}
+
+async function assertCapacityForEntry(client, tipo) {
+  if (tipo !== "ENTRADA") return null;
+
+  const capacity = await campusCapacityModel.getCapacityStatus(client);
+  if (!capacity.isFull) return null;
+
+  return {
+    status: 409,
+    body: {
+      error: "El cupo de motos del campus está completo. Registra una salida antes de permitir un nuevo ingreso.",
+      code: "MOTO_CAPACITY_FULL",
+      capacity,
+    },
+  };
 }
 
 async function registrarMovimiento(req, res, next) {
@@ -228,6 +245,12 @@ async function registrarMovimiento(req, res, next) {
         });
     }
 
+    const capacityError = await assertCapacityForEntry(client, tipo);
+    if (capacityError) {
+      await client.query("ROLLBACK");
+      return res.status(capacityError.status).json(capacityError.body);
+    }
+
     const mov = await movimientosModel.createMovimiento(client, estudianteId, tipo, {
       actorUserId: req.user?.id || null,
       vehiculoPlaca: placa || null,
@@ -318,9 +341,19 @@ async function listarDentroCampus(_req, res, next) {
   }
 }
 
+async function obtenerCapacidadMotos(_req, res, next) {
+  try {
+    const capacity = await campusCapacityModel.getCapacityStatus();
+    return res.status(200).json({ capacity });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   registrarMovimiento,
   listarMovimientos,
   listarMovimientosPorEstudiante,
   listarDentroCampus,
+  obtenerCapacidadMotos,
 };

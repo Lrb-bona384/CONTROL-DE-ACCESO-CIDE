@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { dispatchCapacityRefresh } from "./ParkingCapacityAlert.jsx";
 
 const DOCUMENTO_REGEX = /^[A-Z0-9-]{5,20}$/;
 const CELULAR_REGEX = /^\d{10}$/;
@@ -143,6 +144,7 @@ export default function VisitantesMovimientos() {
         observaciones: "",
       });
       await refreshData();
+      dispatchCapacityRefresh();
     } catch (err) {
       setError(err.message);
     }

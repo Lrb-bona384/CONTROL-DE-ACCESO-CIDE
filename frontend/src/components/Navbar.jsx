@@ -54,7 +54,11 @@ export default function Navbar() {
         aria-label={menuOpen ? "Contraer menú" : "Desplegar menú"}
         onClick={() => setMenuOpen((current) => !current)}
       >
-        &#9776;
+        <span className="sidebar__toggle-lines" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
       </button>
 
       <nav
@@ -68,6 +72,7 @@ export default function Navbar() {
             to={item.to}
             end={item.to === "/"}
             aria-label={item.label}
+            title={item.label}
             className={({ isActive }) => `sidebar__link${isActive ? " active" : ""}`}
           >
             <span className="sidebar__icon" aria-hidden="true">{item.icon}</span>

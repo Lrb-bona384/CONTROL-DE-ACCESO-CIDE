@@ -72,6 +72,7 @@ export default function SolicitudInscripcion() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submissionSummary, setSubmissionSummary] = useState(null);
 
   const secondaryMotoEnabled = useMemo(
     () => Boolean(form.placa_secundaria || form.color_secundaria || attachments.tarjeta_propiedad_secundaria_file),
@@ -131,13 +132,14 @@ export default function SolicitudInscripcion() {
     setLoading(true);
 
     try {
+      const normalizedEmail = normalizeText(form.correo_institucional).toLowerCase();
       const payload = {
         ...form,
         documento: normalizeText(form.documento),
         qr_uid: normalizeText(form.qr_uid),
         nombre: normalizeText(form.nombre),
         carrera: normalizeText(form.carrera),
-        correo_institucional: normalizeText(form.correo_institucional).toLowerCase(),
+        correo_institucional: normalizedEmail,
         celular: normalizeText(form.celular),
         placa: normalizePlate(form.placa),
         color: normalizeText(form.color),
@@ -159,6 +161,11 @@ export default function SolicitudInscripcion() {
       });
 
       setStatus("Solicitud enviada correctamente. El área administrativa la revisará y responderá al correo institucional registrado.");
+      setSubmissionSummary({
+        correo: normalizedEmail,
+        nombre: normalizeText(form.nombre),
+        motos: secondaryMotoEnabled ? 2 : 1,
+      });
       setForm(initialForm);
       setAttachments(initialAttachments);
     } catch (err) {
@@ -385,6 +392,33 @@ export default function SolicitudInscripcion() {
           </form>
         </article>
       </section>
+
+      {submissionSummary ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="request-success-title">
+          <div className="modal-backdrop" />
+          <section className="modal-panel request-success-modal">
+            <p className="eyebrow">Solicitud enviada</p>
+            <h3 id="request-success-title">Tu formulario quedó registrado</h3>
+            <p className="modal-copy">
+              Recibimos la solicitud de {submissionSummary.nombre}. Administración revisará el QR institucional y los documentos adjuntos antes de activar el ingreso al campus.
+            </p>
+            <div className="request-success-summary">
+              <span>Respuesta al correo</span>
+              <strong>{submissionSummary.correo}</strong>
+              <span>Motos reportadas</span>
+              <strong>{submissionSummary.motos}</strong>
+            </div>
+            <div className="form-note">
+              Si la solicitud es aprobada o rechazada, llegará una notificación al correo institucional registrado. Si no hay revisión en 48 horas, el sistema la marcará como expirada.
+            </div>
+            <div className="button-strip">
+              <button type="button" onClick={() => setSubmissionSummary(null)}>
+                Entendido
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

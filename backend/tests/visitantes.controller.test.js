@@ -16,20 +16,37 @@ function createRes() {
   };
 }
 
-function loadController({ poolMock, visitantesModelMock, movimientosVisitantesModelMock }) {
+function loadController({ poolMock, visitantesModelMock, movimientosVisitantesModelMock, campusCapacityModelMock }) {
   const dbPath = path.resolve(__dirname, "../config/database.js");
   const visitantesModelPath = path.resolve(__dirname, "../models/visitantes.model.js");
   const movimientosVisitantesModelPath = path.resolve(__dirname, "../models/movimientos-visitantes.model.js");
+  const capacityModelPath = path.resolve(__dirname, "../models/campus-capacity.model.js");
   const controllerPath = path.resolve(__dirname, "../controllers/visitantes.controller.js");
 
   delete require.cache[dbPath];
   delete require.cache[visitantesModelPath];
   delete require.cache[movimientosVisitantesModelPath];
+  delete require.cache[capacityModelPath];
   delete require.cache[controllerPath];
 
   require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: poolMock };
   require.cache[visitantesModelPath] = { id: visitantesModelPath, filename: visitantesModelPath, loaded: true, exports: visitantesModelMock };
   require.cache[movimientosVisitantesModelPath] = { id: movimientosVisitantesModelPath, filename: movimientosVisitantesModelPath, loaded: true, exports: movimientosVisitantesModelMock };
+  require.cache[capacityModelPath] = {
+    id: capacityModelPath,
+    filename: capacityModelPath,
+    loaded: true,
+    exports: campusCapacityModelMock || {
+      getCapacityStatus: async () => ({
+        total: 0,
+        limit: 125,
+        warningThreshold: 115,
+        remaining: 125,
+        isWarning: false,
+        isFull: false,
+      }),
+    },
+  };
 
   return require(controllerPath);
 }
@@ -118,6 +135,57 @@ async function runTest(name, fn) {
     assert.equal(res.statusCode, 201);
     assert.equal(res.body.movimiento.tipo, "SALIDA");
     assert.equal(res.body.visitante.documento, "VIS20002");
+  });
+
+  await runTest("registrarMovimientoVisitante bloquea entrada con moto cuando el cupo está lleno", async () => {
+    const client = {
+      query: async () => ({ rows: [] }),
+      release() {},
+    };
+
+    const { registrarMovimientoVisitante } = loadController({
+      poolMock: { connect: async () => client },
+      visitantesModelMock: {
+        findByDocumentoForUpdate: async () => ({ rows: [] }),
+        findByPlacaForUpdate: async () => ({ rows: [] }),
+        createVisitante: async () => ({ rows: [{ id: 9, documento: "VIS10001", nombre: "Visitante Uno", celular: "3001234567", placa: "ABC12D", entidad: "Proveedor" }] }),
+      },
+      movimientosVisitantesModelMock: {
+        createMovimientoVisitante: async () => {
+          throw new Error("No debe registrar ingreso cuando el cupo está lleno");
+        },
+        getLastByVisitanteId: async () => ({ rows: [] }),
+      },
+      campusCapacityModelMock: {
+        getCapacityStatus: async () => ({
+          total: 125,
+          limit: 125,
+          warningThreshold: 115,
+          remaining: 0,
+          isWarning: false,
+          isFull: true,
+        }),
+      },
+    });
+
+    const req = {
+      body: {
+        documento: "VIS10001",
+        nombre: "Visitante Uno",
+        celular: "3001234567",
+        placa: "ABC12D",
+        entidad: "Proveedor",
+        motivo_visita: "Entrega de materiales",
+        persona_visitada: "Coordinación",
+      },
+      user: { id: 1, role: "ADMIN" },
+    };
+    const res = createRes();
+
+    await registrarMovimientoVisitante(req, res, () => {});
+
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, "MOTO_CAPACITY_FULL");
   });
 
   if (process.exitCode && process.exitCode !== 0) {

@@ -2,6 +2,7 @@
 import { useAuth } from "../context/AuthContext.jsx";
 import QrScanner from "../components/QrScanner.jsx";
 import VisitantesMovimientos from "../components/VisitantesMovimientos.jsx";
+import { dispatchCapacityRefresh } from "../components/ParkingCapacityAlert.jsx";
 
 const CIDE_QR_REGEX = /^https:\/\/soe\.cide\.edu\.co\/verificar-estudiante\/[A-Za-z0-9]{1,8}$/;
 const DOCUMENT_REGEX = /^\d{8,10}$/;
@@ -219,6 +220,7 @@ export default function Movimientos() {
     setDocumentLookupError("");
     setDocumentModalOpen(false);
     await refreshData();
+    dispatchCapacityRefresh();
     return data;
   }
 

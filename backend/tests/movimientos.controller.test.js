@@ -16,17 +16,19 @@ function createRes() {
   };
 }
 
-function loadController({ poolMock, estudiantesModelMock, movimientosModelMock, novedadesModelMock }) {
+function loadController({ poolMock, estudiantesModelMock, movimientosModelMock, novedadesModelMock, campusCapacityModelMock }) {
   const dbPath = path.resolve(__dirname, "../config/database.js");
   const estModelPath = path.resolve(__dirname, "../models/estudiantes.model.js");
   const movModelPath = path.resolve(__dirname, "../models/movimientos.model.js");
   const novModelPath = path.resolve(__dirname, "../models/novedades-acceso.model.js");
+  const capacityModelPath = path.resolve(__dirname, "../models/campus-capacity.model.js");
   const controllerPath = path.resolve(__dirname, "../controllers/movimientos.controller.js");
 
   delete require.cache[dbPath];
   delete require.cache[estModelPath];
   delete require.cache[movModelPath];
   delete require.cache[novModelPath];
+  delete require.cache[capacityModelPath];
   delete require.cache[controllerPath];
 
   require.cache[dbPath] = {
@@ -57,6 +59,22 @@ function loadController({ poolMock, estudiantesModelMock, movimientosModelMock, 
     exports: novedadesModelMock || {
       createNovedadAcceso: async () => ({ rows: [] }),
       findByMovimientoId: async () => ({ rows: [] }),
+    },
+  };
+
+  require.cache[capacityModelPath] = {
+    id: capacityModelPath,
+    filename: capacityModelPath,
+    loaded: true,
+    exports: campusCapacityModelMock || {
+      getCapacityStatus: async () => ({
+        total: 0,
+        limit: 125,
+        warningThreshold: 115,
+        remaining: 125,
+        isWarning: false,
+        isFull: false,
+      }),
     },
   };
 
@@ -325,6 +343,49 @@ async function runTest(name, fn) {
     assert.equal(res.statusCode, 201);
     assert.ok(calls.some((c) => c.op === "findByPlacaForUpdate" && c.placa === "ABC12D"));
     assert.ok(calls.some((c) => c.op === "createMovimiento" && c.estudianteId === 19 && c.tipo === "ENTRADA"));
+  });
+
+  await runTest("registrarMovimiento bloquea entrada cuando el cupo de motos está lleno", async () => {
+    const client = {
+      query: async () => ({ rows: [] }),
+      release() {},
+    };
+
+    const { registrarMovimiento } = loadController({
+      poolMock: {
+        connect: async () => client,
+      },
+      estudiantesModelMock: {
+        findByPlacaForUpdate: async () => ({
+          rows: [{ id: 19, documento: "12345678", nombre: "Luis", carrera: "Ing", vigencia: true, motos: [{ placa: "ABC12D", is_active: true }] }],
+        }),
+      },
+      movimientosModelMock: {
+        getLastByEstudianteId: async () => ({ rows: [] }),
+        createMovimiento: async () => {
+          throw new Error("No debe registrar ingreso cuando el cupo está lleno");
+        },
+      },
+      campusCapacityModelMock: {
+        getCapacityStatus: async () => ({
+          total: 125,
+          limit: 125,
+          warningThreshold: 115,
+          remaining: 0,
+          isWarning: false,
+          isFull: true,
+        }),
+      },
+    });
+
+    const req = { body: { placa: "abc12d" } };
+    const res = createRes();
+
+    await registrarMovimiento(req, res, () => {});
+
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, "MOTO_CAPACITY_FULL");
+    assert.equal(res.body.capacity.total, 125);
   });
 
   await runTest("registrarMovimiento alterna a SALIDA cuando ultimo movimiento fue ENTRADA", async () => {
@@ -680,6 +741,33 @@ async function runTest(name, fn) {
       count: 1,
       estudiantes: fakeRows,
     });
+  });
+
+  await runTest("obtenerCapacidadMotos retorna estado de capacidad", async () => {
+    const { obtenerCapacidadMotos } = loadController({
+      poolMock: {},
+      estudiantesModelMock: {},
+      movimientosModelMock: {},
+      campusCapacityModelMock: {
+        getCapacityStatus: async () => ({
+          total: 115,
+          limit: 125,
+          warningThreshold: 115,
+          remaining: 10,
+          isWarning: true,
+          isFull: false,
+        }),
+      },
+    });
+
+    const res = createRes();
+
+    await obtenerCapacidadMotos({}, res, () => {});
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.capacity.total, 115);
+    assert.equal(res.body.capacity.remaining, 10);
+    assert.equal(res.body.capacity.isWarning, true);
   });
 
   await runTest("listarDentroCampus llama next(error) cuando falla la consulta", async () => {
