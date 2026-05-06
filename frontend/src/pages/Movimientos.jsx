@@ -778,8 +778,8 @@ export default function Movimientos() {
           {insideCampus.length === 0 ? (
             <div className="empty-state">No hay estudiantes dentro del campus en este momento.</div>
           ) : (
-            <div className="table-wrap table-wrap--scrollable">
-              <table className="data-table">
+            <div className="table-wrap table-wrap--scrollable movement-table-wrap">
+              <table className="data-table movement-table">
                 <thead>
                   <tr>
                     <th>Estudiante</th>
@@ -821,8 +821,8 @@ export default function Movimientos() {
           {allMovements.length === 0 ? (
             <div className="empty-state">{"Aún no hay movimientos registrados."}</div>
           ) : (
-            <div className="table-wrap table-wrap--scrollable">
-              <table className="data-table">
+            <div className="table-wrap table-wrap--scrollable movement-table-wrap">
+              <table className="data-table movement-table movement-table--history">
                 <thead>
                   <tr>
                     <th>Fecha</th>

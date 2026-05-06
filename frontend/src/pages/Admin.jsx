@@ -410,6 +410,26 @@ export default function Admin() {
   }, [estudiantes, studentFilter]);
 
   const visibleRequests = useMemo(() => solicitudes, [solicitudes]);
+  const requestSummary = useMemo(() => {
+    return solicitudes.reduce(
+      (summary, request) => ({
+        ...summary,
+        [request.estado]: (summary[request.estado] || 0) + 1,
+      }),
+      { PENDIENTE: 0, APROBADA: 0, RECHAZADA: 0, EXPIRADA: 0 }
+    );
+  }, [solicitudes]);
+
+  function formatDate(value) {
+    return value ? new Date(value).toLocaleString("es-CO") : "-";
+  }
+
+  function getRequestStatusClass(status) {
+    if (status === "APROBADA") return "request-status request-status--approved";
+    if (status === "RECHAZADA") return "request-status request-status--rejected";
+    if (status === "EXPIRADA") return "request-status request-status--expired";
+    return "request-status request-status--pending";
+  }
 
   function applyRejectionTemplate(templateValue) {
     const template = REJECTION_TEMPLATES.find((item) => item.value === templateValue);
@@ -422,7 +442,8 @@ export default function Admin() {
 
   function openRequestDocument(url) {
     if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    const targetUrl = url.startsWith("/uploads/") ? `/api${url}` : url;
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
   }
 
   useEffect(() => {
@@ -744,133 +765,135 @@ export default function Admin() {
 
       {adminView === "admisiones" ? (
         <>
-          <article className="info-card">
-            <h3>Admisiones y aprobaciones</h3>
-            <div className="empty-state">
-              {"Aquí ADMIN revisa solicitudes de inscripción, aprueba o rechaza registros y controla el flujo previo a la activación del estudiante."}
+          <section className="admissions-panel">
+            <div className="admissions-panel__head">
+              <div>
+                <p className="eyebrow">Solicitudes de inscripción</p>
+                <h3>Bandeja de aprobación administrativa</h3>
+                <p>Revisa datos, documentos y trazabilidad antes de aprobar o rechazar una solicitud.</p>
+              </div>
+              <div className="admin-table-tools">
+                <label>
+                  Estado
+                  <select value={requestFilter} onChange={(event) => setRequestFilter(event.target.value)}>
+                    <option value="PENDIENTE">Pendientes</option>
+                    <option value="APROBADA">Aprobadas</option>
+                    <option value="RECHAZADA">Rechazadas</option>
+                    <option value="EXPIRADA">Expiradas</option>
+                    <option value="TODAS">Todas</option>
+                  </select>
+                </label>
+                <span className="table-count">{visibleRequests.length} visible(s)</span>
+              </div>
             </div>
-          </article>
 
-      <section className="table-panel">
-        <div className="table-panel__header admin-table-header">
-          <div>
-            <p className="eyebrow">Solicitudes de inscripción</p>
-            <h3>Bandeja de aprobación administrativa</h3>
-          </div>
-          <div className="admin-table-tools">
-            <select value={requestFilter} onChange={(event) => setRequestFilter(event.target.value)}>
-              <option value="PENDIENTE">Pendientes</option>
-              <option value="APROBADA">Aprobadas</option>
-              <option value="RECHAZADA">Rechazadas</option>
-              <option value="EXPIRADA">Expiradas</option>
-              <option value="TODAS">Todas</option>
-            </select>
-            <span className="table-count">{visibleRequests.length} visible(s)</span>
-          </div>
-        </div>
+            <div className="admissions-summary" aria-label="Resumen de solicitudes">
+              <div className="admissions-summary__item">
+                <span>Pendientes</span>
+                <strong>{requestSummary.PENDIENTE}</strong>
+              </div>
+              <div className="admissions-summary__item">
+                <span>Aprobadas</span>
+                <strong>{requestSummary.APROBADA}</strong>
+              </div>
+              <div className="admissions-summary__item">
+                <span>Rechazadas</span>
+                <strong>{requestSummary.RECHAZADA}</strong>
+              </div>
+              <div className="admissions-summary__item">
+                <span>Expiradas</span>
+                <strong>{requestSummary.EXPIRADA}</strong>
+              </div>
+            </div>
 
-        {visibleRequests.length === 0 ? (
-          <div className="empty-state">No hay solicitudes para el filtro seleccionado.</div>
-        ) : (
-          <div className="table-wrap table-wrap--scrollable table-wrap--panel">
-            <table className="data-table request-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Estudiante</th>
-                  <th>Correo</th>
-                  <th>Principal</th>
-                  <th>Secundaria</th>
-                  <th>Adjuntos</th>
-                  <th>Estado</th>
-                  <th>Expira</th>
-                  <th>Revisión</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
+            {visibleRequests.length === 0 ? (
+              <div className="empty-state">No hay solicitudes para el filtro seleccionado.</div>
+            ) : (
+              <div className="request-review-list">
                 {visibleRequests.map((request) => (
-                  <tr key={request.id}>
-                    <td>{request.id}</td>
-                    <td>
-                      <div className="movement-cell-strong">
-                        <span className="movement-main">{request.nombre}</span>
-                        <span className="movement-sub">DOC {request.documento} · {request.carrera}</span>
+                  <article className="request-review-card" key={request.id}>
+                    <div className="request-review-card__top">
+                      <div>
+                        <span className={getRequestStatusClass(request.estado)}>{request.estado}</span>
+                        <h4>{request.nombre}</h4>
+                        <p>DOC {request.documento} · {request.carrera}</p>
                       </div>
-                    </td>
-                    <td>{request.correo_institucional}</td>
-                    <td>
-                      <div className="movement-cell-strong">
-                        <span className="movement-main">{request.placa}</span>
-                        <span className="movement-sub">{request.color}</span>
-                      </div>
-                    </td>
-                    <td>
-                      {request.placa_secundaria ? (
-                        <div className="movement-cell-strong">
-                          <span className="movement-main">{request.placa_secundaria}</span>
-                          <span className="movement-sub">{request.color_secundaria || "-"}</span>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td>
-                      <div className="movement-cell-strong">
-                        <span className="movement-sub">QR: {request.qr_imagen_url}</span>
-                        <span className="movement-sub">Tarjeta 1: {request.tarjeta_propiedad_principal_url}</span>
-                        <span className="movement-sub">Tarjeta 2: {request.tarjeta_propiedad_secundaria_url || "-"}</span>
-                      </div>
-                    </td>
-                    <td>{request.estado}</td>
-                    <td>{request.expires_at ? new Date(request.expires_at).toLocaleString("es-CO") : "-"}</td>
-                    <td>
-                      <div className="movement-cell-strong">
-                        <span className="movement-sub">{request.reviewed_by_username || "Sin revisar"}</span>
-                        <span className="movement-sub">{request.reviewed_at ? new Date(request.reviewed_at).toLocaleString("es-CO") : "-"}</span>
-                      </div>
-                    </td>
-                    <td>
-                      {request.estado === "PENDIENTE" ? (
-                        <div className="button-strip">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
-                              setRequestApproveTarget(request);
-                            }}
-                          >
-                            Aprobar
-                          </button>
-                          <button
-                            type="button"
-                            className="danger-button"
-                            onClick={() => {
-                              setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
-                              setRequestRejectTarget(request);
-                            }}
-                          >
-                            Rechazar
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="movement-pill entry">Procesada</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                      <span className="request-review-card__id">#{request.id}</span>
+                    </div>
 
-          <article className="info-card">
-            <h3>{"Estado del módulo de admisiones"}</h3>
-            <div className="empty-state">
-              {"Aquí ADMIN revisa las solicitudes, deja trazabilidad de la decisión y prepara el flujo de correo y expiración automática."}
-            </div>
-          </article>
+                    <div className="request-review-grid">
+                      <div>
+                        <span>Correo institucional</span>
+                        <strong>{request.correo_institucional}</strong>
+                      </div>
+                      <div>
+                        <span>Celular</span>
+                        <strong>{request.celular || "-"}</strong>
+                      </div>
+                      <div>
+                        <span>Moto principal</span>
+                        <strong>{request.placa} · {request.color}</strong>
+                      </div>
+                      <div>
+                        <span>Moto secundaria</span>
+                        <strong>{request.placa_secundaria ? `${request.placa_secundaria} · ${request.color_secundaria || "-"}` : "No registra"}</strong>
+                      </div>
+                      <div>
+                        <span>Expira</span>
+                        <strong>{formatDate(request.expires_at)}</strong>
+                      </div>
+                      <div>
+                        <span>Revisión</span>
+                        <strong>{request.reviewed_by_username || "Sin revisar"}</strong>
+                      </div>
+                    </div>
+
+                    <div className="request-documents">
+                      <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.qr_imagen_url)}>
+                        Ver QR
+                      </button>
+                      <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.tarjeta_propiedad_principal_url)}>
+                        Ver tarjeta principal
+                      </button>
+                      {request.tarjeta_propiedad_secundaria_url ? (
+                        <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.tarjeta_propiedad_secundaria_url)}>
+                          Ver tarjeta secundaria
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {request.estado === "PENDIENTE" ? (
+                      <div className="request-review-actions">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
+                            setRequestApproveTarget(request);
+                          }}
+                        >
+                          Aprobar solicitud
+                        </button>
+                        <button
+                          type="button"
+                          className="danger-button"
+                          onClick={() => {
+                            setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
+                            setRequestRejectTarget(request);
+                          }}
+                        >
+                          Rechazar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="request-review-note">
+                        {request.motivo_rechazo || request.notas_revision || `Procesada el ${formatDate(request.reviewed_at)}`}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
         </>
       ) : null}
 
@@ -1121,22 +1144,39 @@ export default function Admin() {
       {requestApproveTarget ? (
         <div className="modal" aria-hidden="false">
           <div className="modal-backdrop" onClick={() => setRequestApproveTarget(null)} />
-          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="approve-request-title">
+          <div className="modal-panel request-review-modal" role="dialog" aria-modal="true" aria-labelledby="approve-request-title">
             <p className="eyebrow">Validación administrativa</p>
             <h3 id="approve-request-title">Aprobar solicitud de inscripción</h3>
             <p className="modal-copy">
               Al aprobar esta solicitud se creará el estudiante activo con sus motos registradas y quedará trazabilidad del revisor.
             </p>
-            <pre className="modal-details">{[
-              `id: ${requestApproveTarget.id}`,
-              `documento: ${requestApproveTarget.documento}`,
-              `nombre: ${requestApproveTarget.nombre}`,
-              `correo: ${requestApproveTarget.correo_institucional}`,
-              `principal: ${requestApproveTarget.placa} · ${requestApproveTarget.color}`,
-              `secundaria: ${requestApproveTarget.placa_secundaria || "-"} · ${requestApproveTarget.color_secundaria || "-"}`,
-              `adjunto QR: ${requestApproveTarget.qr_imagen_url}`,
-            ].join("\n")}</pre>
-            <div className="button-strip">
+            <div className="request-review-grid request-review-grid--modal">
+              <div>
+                <span>Solicitud</span>
+                <strong>#{requestApproveTarget.id}</strong>
+              </div>
+              <div>
+                <span>Documento</span>
+                <strong>{requestApproveTarget.documento}</strong>
+              </div>
+              <div>
+                <span>Nombre</span>
+                <strong>{requestApproveTarget.nombre}</strong>
+              </div>
+              <div>
+                <span>Correo</span>
+                <strong>{requestApproveTarget.correo_institucional}</strong>
+              </div>
+              <div>
+                <span>Moto principal</span>
+                <strong>{requestApproveTarget.placa} · {requestApproveTarget.color}</strong>
+              </div>
+              <div>
+                <span>Moto secundaria</span>
+                <strong>{requestApproveTarget.placa_secundaria ? `${requestApproveTarget.placa_secundaria} · ${requestApproveTarget.color_secundaria || "-"}` : "No registra"}</strong>
+              </div>
+            </div>
+            <div className="request-documents request-documents--modal">
               <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestApproveTarget.qr_imagen_url)}>
                 Ver QR adjunto
               </button>
@@ -1173,18 +1213,30 @@ export default function Admin() {
       {requestRejectTarget ? (
         <div className="modal" aria-hidden="false">
           <div className="modal-backdrop" onClick={() => setRequestRejectTarget(null)} />
-          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="reject-request-title">
+          <div className="modal-panel request-review-modal" role="dialog" aria-modal="true" aria-labelledby="reject-request-title">
             <p className="eyebrow">Validación administrativa</p>
             <h3 id="reject-request-title">Rechazar solicitud de inscripción</h3>
             <p className="modal-copy">
               Selecciona un motivo predefinido o ajusta el mensaje final. El sistema enviará la respuesta al correo institucional del solicitante.
             </p>
-            <pre className="modal-details">{[
-              `id: ${requestRejectTarget.id}`,
-              `documento: ${requestRejectTarget.documento}`,
-              `nombre: ${requestRejectTarget.nombre}`,
-              `correo: ${requestRejectTarget.correo_institucional}`,
-            ].join("\n")}</pre>
+            <div className="request-review-grid request-review-grid--modal">
+              <div>
+                <span>Solicitud</span>
+                <strong>#{requestRejectTarget.id}</strong>
+              </div>
+              <div>
+                <span>Documento</span>
+                <strong>{requestRejectTarget.documento}</strong>
+              </div>
+              <div>
+                <span>Nombre</span>
+                <strong>{requestRejectTarget.nombre}</strong>
+              </div>
+              <div>
+                <span>Correo</span>
+                <strong>{requestRejectTarget.correo_institucional}</strong>
+              </div>
+            </div>
             <div className="stack-form">
               <label>
                 Mensaje predefinido de rechazo
@@ -1219,7 +1271,7 @@ export default function Admin() {
                 />
               </label>
             </div>
-            <div className="button-strip">
+            <div className="request-documents request-documents--modal">
               <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestRejectTarget.qr_imagen_url)}>
                 Ver QR adjunto
               </button>

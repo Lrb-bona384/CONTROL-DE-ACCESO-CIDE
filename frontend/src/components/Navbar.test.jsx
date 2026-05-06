@@ -12,9 +12,49 @@ vi.mock("../context/AuthContext.jsx", () => authMock);
 describe("Navbar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 1024,
+    });
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query.includes("820px") ? window.innerWidth <= 820 : false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
   });
 
-  it("inicia en modo compacto y conserva accesos principales", () => {
+  it("inicia desplegado en computador y conserva accesos principales", () => {
+    authMock.useAuth.mockReturnValue({
+      user: { username: "admin" },
+      role: "ADMIN",
+      logout: vi.fn(),
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("button", { name: /contraer men\u00fa/i })).toHaveAttribute("aria-expanded", "true");
+    expect(container.querySelector(".sidebar")).toHaveClass("sidebar--open");
+    expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "/",
+      "/estudiantes",
+      "/movimientos",
+      "/admin",
+    ]);
+  });
+
+  it("inicia compacto en celular", () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 390,
+    });
+
     authMock.useAuth.mockReturnValue({
       user: { username: "admin" },
       role: "ADMIN",
@@ -29,15 +69,9 @@ describe("Navbar", () => {
 
     expect(screen.getByRole("button", { name: /desplegar men\u00fa/i })).toHaveAttribute("aria-expanded", "false");
     expect(container.querySelector(".sidebar")).toHaveClass("sidebar--collapsed");
-    expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
-      "/",
-      "/estudiantes",
-      "/movimientos",
-      "/admin",
-    ]);
   });
 
-  it("despliega el menu administrativo en el orden esperado", () => {
+  it("muestra el menu administrativo en el orden esperado", () => {
     const logout = vi.fn();
 
     authMock.useAuth.mockReturnValue({
@@ -51,8 +85,6 @@ describe("Navbar", () => {
         <Navbar />
       </MemoryRouter>
     );
-
-    fireEvent.click(screen.getByRole("button", { name: /desplegar men\u00fa/i }));
 
     expect(container.querySelector(".sidebar")).toHaveClass("sidebar--open");
     expect(screen.getByRole("button", { name: /contraer men\u00fa/i })).toHaveAttribute("aria-expanded", "true");
@@ -74,8 +106,37 @@ describe("Navbar", () => {
       "ADAdministraci\u00f3n",
     ]);
 
+    fireEvent.click(links[2]);
+    expect(container.querySelector(".sidebar")).toHaveClass("sidebar--open");
+
     fireEvent.click(screen.getByRole("button", { name: /cerrar sesi\u00f3n/i }));
     expect(logout).toHaveBeenCalled();
+  });
+
+  it("contrae el menu al navegar solo en celular", () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 390,
+    });
+
+    authMock.useAuth.mockReturnValue({
+      user: { username: "admin" },
+      role: "ADMIN",
+      logout: vi.fn(),
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /desplegar men\u00fa/i }));
+    expect(container.querySelector(".sidebar")).toHaveClass("sidebar--open");
+
+    fireEvent.click(screen.getByRole("link", { name: /movimientos/i }));
+    expect(container.querySelector(".sidebar")).toHaveClass("sidebar--collapsed");
   });
 
   it("oculta administracion para guarda", () => {
@@ -91,7 +152,6 @@ describe("Navbar", () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /desplegar men\u00fa/i }));
     expect(screen.queryByRole("link", { name: /administraci\u00f3n/i })).not.toBeInTheDocument();
     expect(screen.getByText(/operaci\u00f3n de acceso y monitoreo/i)).toBeInTheDocument();
   });

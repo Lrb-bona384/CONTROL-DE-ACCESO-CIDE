@@ -21,9 +21,14 @@ const menuByRole = {
   ],
 };
 
+function isMobileViewport() {
+  return typeof window !== "undefined"
+    && (window.matchMedia?.("(max-width: 820px)").matches || window.innerWidth <= 820);
+}
+
 export default function Navbar() {
   const { user, logout, role } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(() => !isMobileViewport());
   const items = menuByRole[role] || [];
   const roleCopy = role === "ADMIN"
     ? "Acceso administrativo completo"
@@ -37,29 +42,37 @@ export default function Navbar() {
       : role === "CONSULTA"
         ? "Rol activo: CONSULTA"
         : "Rol activo: -";
+  const closeMenuOnlyOnMobile = () => {
+    if (isMobileViewport()) {
+      setMenuOpen(false);
+    }
+  };
 
   return (
     <aside className={`sidebar${menuOpen ? " sidebar--open" : " sidebar--collapsed"}`}>
+      <div className="sidebar__mobile-head">
+        <button
+          type="button"
+          className="sidebar__toggle"
+          aria-expanded={menuOpen}
+          aria-controls="siuc-sidebar-menu"
+          aria-label={menuOpen ? "Contraer menú" : "Desplegar menú"}
+          onClick={() => setMenuOpen((current) => !current)}
+        >
+          <span className="sidebar__toggle-lines" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+        </button>
+        <span className="sidebar__mobile-title">Portal de ingresos SIUC</span>
+      </div>
+
       <div className="sidebar__brand">
         <h1 className="sidebar__wordmark">SIUC</h1>
         <p className="sidebar__submark">Sistema de Ingreso Universidad CIDE</p>
-        <p className="sidebar__portal">Portal operativo</p>
+        <p className="sidebar__portal">Portal de ingresos SIUC</p>
       </div>
-
-      <button
-        type="button"
-        className="sidebar__toggle"
-        aria-expanded={menuOpen}
-        aria-controls="siuc-sidebar-menu"
-        aria-label={menuOpen ? "Contraer menú" : "Desplegar menú"}
-        onClick={() => setMenuOpen((current) => !current)}
-      >
-        <span className="sidebar__toggle-lines" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
-        </span>
-      </button>
 
       <nav
         id="siuc-sidebar-menu"
@@ -74,6 +87,7 @@ export default function Navbar() {
             aria-label={item.label}
             title={item.label}
             className={({ isActive }) => `sidebar__link${isActive ? " active" : ""}`}
+            onClick={closeMenuOnlyOnMobile}
           >
             <span className="sidebar__icon" aria-hidden="true">{item.icon}</span>
             <span className="sidebar__label">{item.label}</span>
