@@ -7,6 +7,7 @@ const DOCUMENTO_REGEX = /^\d{8,10}$/;
 const CELULAR_REGEX = /^\d{10}$/;
 const PLACA_REGEX = /^[A-Z]{3}\d{2}[A-Z]$/;
 const CORREO_CIDE_REGEX = /^[A-Za-z0-9._%+-]+@cide\.edu\.co$/i;
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 const initialForm = {
   documento: "",
@@ -40,7 +41,8 @@ function normalizePlate(value) {
 }
 
 async function publicRequest(url, options = {}) {
-  const response = await fetch(url.startsWith("/") ? `/api${url}` : url, {
+  const requestUrl = url.startsWith("/") ? (API_BASE_URL ? `${API_BASE_URL}${url}` : `/api${url}`) : url;
+  const response = await fetch(requestUrl, {
     ...options,
     headers: {
       "Content-Type": "application/json",
