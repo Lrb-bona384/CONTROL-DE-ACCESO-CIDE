@@ -5,6 +5,7 @@ const { ROLES } = require("../constants/roles");
 const {
   aprobarSolicitudInscripcion,
   crearSolicitudInscripcion,
+  enviarVistaPreviaCorreosSolicitud,
   listarSolicitudesInscripcion,
   obtenerSolicitudInscripcion,
   rechazarSolicitudInscripcion,
@@ -18,6 +19,7 @@ router.use(authMiddleware);
 router.use(requireRole(ROLES.ADMIN));
 
 router.get("/", listarSolicitudesInscripcion);
+router.post("/correos/vista-previa", enviarVistaPreviaCorreosSolicitud);
 router.get("/:id", obtenerSolicitudInscripcion);
 router.patch("/:id/aprobar", aprobarSolicitudInscripcion);
 router.patch("/:id/rechazar", rechazarSolicitudInscripcion);

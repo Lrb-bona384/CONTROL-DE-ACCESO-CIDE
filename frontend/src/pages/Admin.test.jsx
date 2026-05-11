@@ -70,6 +70,8 @@ describe("Admin", () => {
               nombre: "Solicitud Demo",
               carrera: "Ingeniería Mecatrónica - 110402",
               correo_institucional: "demo@cide.edu.co",
+              celular: "3001112233",
+              qr_uid: "https://soe.cide.edu.co/verificar-estudiante/MTEyMjMzNDQ=",
               placa: "AAA11A",
               color: "Negro",
               placa_secundaria: null,
@@ -110,6 +112,10 @@ describe("Admin", () => {
 
     expect(await screen.findByRole("heading", { name: /bandeja de aprobación administrativa/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /aprobar/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /revisar detalle/i }));
+    expect(await screen.findByRole("heading", { name: /detalle de solicitud #11/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /abrir qr institucional/i })).toBeInTheDocument();
+    expect(screen.getByText(/máximo 2 motos por estudiante/i)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /usuarios del sistema/i })).not.toBeInTheDocument();
   });
 

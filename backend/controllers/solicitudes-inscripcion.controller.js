@@ -6,6 +6,7 @@ const {
   notifySolicitudCreada,
   notifySolicitudExpirada,
   notifySolicitudRechazada,
+  sendSolicitudPreviewMails,
 } = require("../utils/solicitud-mailer");
 const { removeStoredFiles, storeAttachment } = require("../utils/solicitud-uploads");
 
@@ -393,9 +394,29 @@ async function rechazarSolicitudInscripcion(req, res, next) {
   }
 }
 
+async function enviarVistaPreviaCorreosSolicitud(req, res, next) {
+  try {
+    const to = normalizeEmail(req.body?.to || process.env.SMTP_USER || "");
+    const result = await sendSolicitudPreviewMails(to);
+
+    if (result?.skipped) {
+      return res.status(400).json({ error: result.reason || "No fue posible enviar la vista previa." });
+    }
+
+    return res.json({
+      message: "Correos de vista previa enviados",
+      to: result.to,
+      sent: result.sent,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   aprobarSolicitudInscripcion,
   crearSolicitudInscripcion,
+  enviarVistaPreviaCorreosSolicitud,
   listarSolicitudesInscripcion,
   obtenerSolicitudInscripcion,
   rechazarSolicitudInscripcion,

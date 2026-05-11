@@ -182,6 +182,37 @@ function createExpiredMail(solicitud) {
   };
 }
 
+async function sendSolicitudPreviewMails(to) {
+  const previewTarget = String(to || process.env.SMTP_USER || "").trim();
+  if (!previewTarget) {
+    return { skipped: true, reason: "No hay correo destino para enviar la vista previa." };
+  }
+
+  const sample = {
+    id: 999,
+    documento: "88001000",
+    nombre: "Estudiante Demo SIUC",
+    correo_institucional: previewTarget,
+    estado: "PENDIENTE",
+    motivo_rechazo: "La documentación adjunta no permite validar la tarjeta de propiedad.",
+    notas_revision: "Vista previa de formato generada desde administración.",
+  };
+
+  const payloads = [
+    createSubmissionMail(sample),
+    createApprovalMail({ ...sample, estado: "APROBADA" }),
+    createRejectionMail({ ...sample, estado: "RECHAZADA" }),
+    createExpiredMail({ ...sample, estado: "EXPIRADA" }),
+  ].map((payload) => ({ ...payload, to: previewTarget }));
+
+  const results = [];
+  for (const payload of payloads) {
+    results.push(await sendMailSafe(payload));
+  }
+
+  return { to: previewTarget, sent: results.length, results };
+}
+
 async function notifySolicitudCreada(solicitud) {
   return sendMailSafe(createSubmissionMail(solicitud));
 }
@@ -199,8 +230,13 @@ async function notifySolicitudExpirada(solicitud) {
 }
 
 module.exports = {
+  createApprovalMail,
+  createExpiredMail,
+  createRejectionMail,
+  createSubmissionMail,
   notifySolicitudAprobada,
   notifySolicitudCreada,
   notifySolicitudExpirada,
   notifySolicitudRechazada,
+  sendSolicitudPreviewMails,
 };

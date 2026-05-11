@@ -55,8 +55,11 @@ export default function Admin() {
   const [userPasswordTarget, setUserPasswordTarget] = useState(null);
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null);
   const [studentRestoreTarget, setStudentRestoreTarget] = useState(null);
+  const [studentDetailTarget, setStudentDetailTarget] = useState(null);
+  const [userDetailTarget, setUserDetailTarget] = useState(null);
   const [studentFilter, setStudentFilter] = useState("");
   const [requestFilter, setRequestFilter] = useState("PENDIENTE");
+  const [previewEmail, setPreviewEmail] = useState("");
   const [studentDeleteIssue, setStudentDeleteIssue] = useState("");
   const [studentDeleteStatus, setStudentDeleteStatus] = useState({
     checking: false,
@@ -71,6 +74,7 @@ export default function Admin() {
   });
   const [requestApproveTarget, setRequestApproveTarget] = useState(null);
   const [requestRejectTarget, setRequestRejectTarget] = useState(null);
+  const [requestDetailTarget, setRequestDetailTarget] = useState(null);
   const [requestReviewForm, setRequestReviewForm] = useState({
     notas_revision: "",
     motivo_rechazo: "",
@@ -391,6 +395,25 @@ export default function Admin() {
     }
   }
 
+  async function handleSendEmailPreview() {
+    setLoading(true);
+    setError("");
+    setStatus("");
+
+    try {
+      const data = await apiRequest("/solicitudes-inscripcion/correos/vista-previa", {
+        method: "POST",
+        body: JSON.stringify({ to: previewEmail.trim() }),
+      });
+
+      setStatus(`${data.sent || 4} correos de vista previa enviados a ${data.to}.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filteredStudents = useMemo(() => {
     const term = studentFilter.trim().toLowerCase();
     if (!term) return estudiantes;
@@ -608,15 +631,13 @@ export default function Admin() {
           <div className="empty-state">No hay usuarios creados.</div>
         ) : (
           <div className="table-wrap table-wrap--panel">
-            <table className="data-table">
+            <table className="data-table admin-users-table">
               <thead>
                 <tr>
                   <th>ID</th>
                   <th>Usuario</th>
                   <th>Rol</th>
                   <th>Estado</th>
-                  <th>Creado</th>
-                  <th>Actualizado</th>
                   <th>Acción</th>
                 </tr>
               </thead>
@@ -627,10 +648,15 @@ export default function Admin() {
                     <td>{account.username}</td>
                     <td>{account.role}</td>
                     <td>{account.is_active ? "Activo" : "Desactivado"}</td>
-                    <td>{account.created_at ? new Date(account.created_at).toLocaleString("es-CO") : "-"}</td>
-                    <td>{account.updated_at ? new Date(account.updated_at).toLocaleString("es-CO") : "-"}</td>
                     <td>
                       <div className="button-strip">
+                        <button
+                          type="button"
+                          className="ghost-button table-action-button"
+                          onClick={() => setUserDetailTarget(account)}
+                        >
+                          Detalle
+                        </button>
                         <button
                           type="button"
                           className="ghost-button"
@@ -701,14 +727,9 @@ export default function Admin() {
                 <tr>
                   <th>Documento</th>
                   <th>Nombre</th>
-                  <th>QR</th>
                   <th>Placa</th>
                   <th>Celular</th>
                   <th>Vigencia</th>
-                  <th>Creado</th>
-                  <th>Actualizado</th>
-                  <th>Creado por</th>
-                  <th>Actualizado por</th>
                   <th>Estado</th>
                   <th>Acción</th>
                 </tr>
@@ -718,33 +739,33 @@ export default function Admin() {
                   <tr key={student.estudiante_id}>
                     <td>{student.documento}</td>
                     <td>{student.nombre}</td>
-                    <td>{student.qr_uid || "-"}</td>
                     <td>{student.placa || "-"}</td>
                     <td>{student.celular || "-"}</td>
                     <td>{student.vigencia ? "Vigente" : "No vigente"}</td>
-                    <td>{student.created_at ? new Date(student.created_at).toLocaleString("es-CO") : "-"}</td>
-                    <td>{student.updated_at ? new Date(student.updated_at).toLocaleString("es-CO") : "-"}</td>
-                    <td>{student.created_by_username || "Sin responsable"}</td>
-                    <td>{student.updated_by_username || "Sin responsable"}</td>
                     <td>{student.is_deleted ? "Desactivado" : "Activo"}</td>
                     <td>
-                      {student.is_deleted ? (
-                        <button
-                          type="button"
-                          className="ghost-button"
-                          onClick={() => setStudentRestoreTarget(student)}
-                        >
-                          Reactivar
+                      <div className="button-strip">
+                        <button type="button" className="ghost-button table-action-button" onClick={() => setStudentDetailTarget(student)}>
+                          Detalle
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="danger-button"
-                          onClick={() => setStudentDeleteTarget(student)}
-                        >
-                          Desactivar
-                        </button>
-                      )}
+                        {student.is_deleted ? (
+                          <button
+                            type="button"
+                            className="ghost-button"
+                            onClick={() => setStudentRestoreTarget(student)}
+                          >
+                            Reactivar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="danger-button"
+                            onClick={() => setStudentDeleteTarget(student)}
+                          >
+                            Desactivar
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -783,6 +804,18 @@ export default function Admin() {
                     <option value="TODAS">Todas</option>
                   </select>
                 </label>
+                <label>
+                  Vista previa de correos
+                  <input
+                    type="email"
+                    value={previewEmail}
+                    onChange={(event) => setPreviewEmail(event.target.value)}
+                    placeholder="correo@cide.edu.co"
+                  />
+                </label>
+                <button type="button" className="ghost-button" disabled={loading} onClick={handleSendEmailPreview}>
+                  Enviar formatos
+                </button>
                 <span className="table-count">{visibleRequests.length} visible(s)</span>
               </div>
             </div>
@@ -848,18 +881,29 @@ export default function Admin() {
                       </div>
                     </div>
 
-                    <div className="request-documents">
-                      <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.qr_imagen_url)}>
-                        Ver QR
-                      </button>
-                      <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.tarjeta_propiedad_principal_url)}>
-                        Ver tarjeta principal
-                      </button>
-                      {request.tarjeta_propiedad_secundaria_url ? (
-                        <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.tarjeta_propiedad_secundaria_url)}>
-                          Ver tarjeta secundaria
+                    <div className="request-review-split">
+                      <section className="request-document-panel" aria-label={`Documentación de solicitud ${request.id}`}>
+                        <span className="request-review-label">Documentación adjunta</span>
+                        <div className="request-documents">
+                          <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.qr_imagen_url)}>
+                            QR
+                          </button>
+                          <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.tarjeta_propiedad_principal_url)}>
+                            Tarjeta principal
+                          </button>
+                          {request.tarjeta_propiedad_secundaria_url ? (
+                            <button type="button" className="ghost-button" onClick={() => openRequestDocument(request.tarjeta_propiedad_secundaria_url)}>
+                              Tarjeta secundaria
+                            </button>
+                          ) : null}
+                        </div>
+                      </section>
+
+                      <div className="request-review-actions request-review-actions--detail">
+                        <button type="button" className="ghost-button" onClick={() => setRequestDetailTarget(request)}>
+                          Revisar detalle
                         </button>
-                      ) : null}
+                      </div>
                     </div>
 
                     {request.estado === "PENDIENTE" ? (
@@ -895,6 +939,243 @@ export default function Admin() {
             )}
           </section>
         </>
+      ) : null}
+
+      {requestDetailTarget ? (
+        <div className="modal" aria-hidden="false">
+          <div className="modal-backdrop" onClick={() => setRequestDetailTarget(null)} />
+          <div className="modal-panel request-detail-modal" role="dialog" aria-modal="true" aria-labelledby="request-detail-title">
+            <p className="eyebrow">Revisión documental</p>
+            <div className="request-detail-head">
+              <div>
+                <h3 id="request-detail-title">Detalle de solicitud #{requestDetailTarget.id}</h3>
+                <p className="modal-copy">
+                  Revisa información, motos y adjuntos antes de tomar una decisión administrativa.
+                </p>
+              </div>
+              <span className={getRequestStatusClass(requestDetailTarget.estado)}>{requestDetailTarget.estado}</span>
+            </div>
+
+            <section className="request-detail-section">
+              <div className="request-detail-section__head">
+                <p className="eyebrow">Solicitante</p>
+                <strong>{requestDetailTarget.nombre}</strong>
+              </div>
+              <div className="request-review-grid request-review-grid--modal">
+                <div>
+                  <span>Documento</span>
+                  <strong>{requestDetailTarget.documento}</strong>
+                </div>
+                <div>
+                  <span>Correo institucional</span>
+                  <strong>{requestDetailTarget.correo_institucional}</strong>
+                </div>
+                <div>
+                  <span>Celular</span>
+                  <strong>{requestDetailTarget.celular || "-"}</strong>
+                </div>
+                <div>
+                  <span>Carrera</span>
+                  <strong>{requestDetailTarget.carrera || "-"}</strong>
+                </div>
+                <div>
+                  <span>QR institucional</span>
+                  <strong>{requestDetailTarget.qr_uid || "-"}</strong>
+                </div>
+                <div>
+                  <span>Expira</span>
+                  <strong>{formatDate(requestDetailTarget.expires_at)}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="request-detail-section">
+              <div className="request-detail-section__head">
+                <p className="eyebrow">Vehículos reportados</p>
+                <strong>Máximo 2 motos por estudiante</strong>
+              </div>
+              <div className="request-vehicle-grid">
+                <article>
+                  <span>Moto principal</span>
+                  <strong>{requestDetailTarget.placa} · {requestDetailTarget.color}</strong>
+                  <small>Tarjeta de propiedad obligatoria</small>
+                </article>
+                <article>
+                  <span>Moto secundaria</span>
+                  <strong>{requestDetailTarget.placa_secundaria ? `${requestDetailTarget.placa_secundaria} · ${requestDetailTarget.color_secundaria || "-"}` : "No registra"}</strong>
+                  <small>{requestDetailTarget.placa_secundaria ? "Tarjeta secundaria adjunta" : "Sin segundo vehículo"}</small>
+                </article>
+              </div>
+            </section>
+
+            <section className="request-detail-section">
+              <div className="request-detail-section__head">
+                <p className="eyebrow">Documentación</p>
+                <strong>Validación de adjuntos</strong>
+              </div>
+              <div className="request-documents request-documents--modal">
+                <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestDetailTarget.qr_imagen_url)}>
+                  Abrir QR institucional
+                </button>
+                <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestDetailTarget.tarjeta_propiedad_principal_url)}>
+                  Abrir tarjeta principal
+                </button>
+                {requestDetailTarget.tarjeta_propiedad_secundaria_url ? (
+                  <button type="button" className="ghost-button" onClick={() => openRequestDocument(requestDetailTarget.tarjeta_propiedad_secundaria_url)}>
+                    Abrir tarjeta secundaria
+                  </button>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="request-detail-section">
+              <div className="request-detail-section__head">
+                <p className="eyebrow">Trazabilidad</p>
+                <strong>{requestDetailTarget.reviewed_by_username || "Sin revisar"}</strong>
+              </div>
+              <div className="request-review-note">
+                {requestDetailTarget.motivo_rechazo || requestDetailTarget.notas_revision || `Creada: ${formatDate(requestDetailTarget.created_at)} · Revisada: ${formatDate(requestDetailTarget.reviewed_at)}`}
+              </div>
+            </section>
+
+            <div className="button-strip">
+              {requestDetailTarget.estado === "PENDIENTE" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
+                      setRequestApproveTarget(requestDetailTarget);
+                      setRequestDetailTarget(null);
+                    }}
+                  >
+                    Aprobar
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() => {
+                      setRequestReviewForm({ notas_revision: "", motivo_rechazo: "", rejection_template: "" });
+                      setRequestRejectTarget(requestDetailTarget);
+                      setRequestDetailTarget(null);
+                    }}
+                  >
+                    Rechazar
+                  </button>
+                </>
+              ) : null}
+              <button type="button" className="ghost-button" onClick={() => setRequestDetailTarget(null)}>
+                Cerrar detalle
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {userDetailTarget ? (
+        <div className="modal" aria-hidden="false">
+          <div className="modal-backdrop" onClick={() => setUserDetailTarget(null)} />
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="user-detail-title">
+            <p className="eyebrow">Detalle de usuario</p>
+            <h3 id="user-detail-title">{userDetailTarget.username}</h3>
+            <p className="modal-copy">
+              Información completa del usuario para auditoría administrativa.
+            </p>
+            <div className="request-review-grid request-review-grid--modal">
+              <article>
+                <span>ID</span>
+                <strong>{userDetailTarget.id || "-"}</strong>
+              </article>
+              <article>
+                <span>Usuario</span>
+                <strong>{userDetailTarget.username || "-"}</strong>
+              </article>
+              <article>
+                <span>Rol</span>
+                <strong>{userDetailTarget.role || "-"}</strong>
+              </article>
+              <article>
+                <span>Estado</span>
+                <strong>{userDetailTarget.is_active ? "Activo" : "Desactivado"}</strong>
+              </article>
+              <article>
+                <span>Creado</span>
+                <strong>{formatDate(userDetailTarget.created_at)}</strong>
+              </article>
+              <article>
+                <span>Actualizado</span>
+                <strong>{formatDate(userDetailTarget.updated_at)}</strong>
+              </article>
+            </div>
+            <div className="button-strip">
+              <button type="button" onClick={() => setUserDetailTarget(null)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {studentDetailTarget ? (
+        <div className="modal" aria-hidden="false">
+          <div className="modal-backdrop" onClick={() => setStudentDetailTarget(null)} />
+          <div className="modal-panel student-detail-modal" role="dialog" aria-modal="true" aria-labelledby="student-detail-title">
+            <p className="eyebrow">Detalle de estudiante</p>
+            <h3 id="student-detail-title">{studentDetailTarget.nombre}</h3>
+            <p className="modal-copy">
+              Información completa del estudiante, motos registradas, QR y trazabilidad administrativa.
+            </p>
+            <div className="request-review-grid request-review-grid--modal student-detail-grid">
+              <article>
+                <span>Documento</span>
+                <strong>{studentDetailTarget.documento || "-"}</strong>
+              </article>
+              <article>
+                <span>Celular</span>
+                <strong>{studentDetailTarget.celular || "-"}</strong>
+              </article>
+              <article>
+                <span>Moto principal</span>
+                <strong>{studentDetailTarget.placa || "-"}</strong>
+                <small>{studentDetailTarget.color || "Sin color registrado"}</small>
+              </article>
+              <article>
+                <span>Moto secundaria</span>
+                <strong>{studentDetailTarget.placa_secundaria || "No registra"}</strong>
+                <small>{studentDetailTarget.color_secundaria || "Sin segundo vehículo"}</small>
+              </article>
+              <article>
+                <span>Vigencia</span>
+                <strong>{studentDetailTarget.vigencia ? "Vigente" : "No vigente"}</strong>
+              </article>
+              <article>
+                <span>Estado</span>
+                <strong>{studentDetailTarget.is_deleted ? "Desactivado" : "Activo"}</strong>
+              </article>
+              <article>
+                <span>Creado</span>
+                <strong>{formatDate(studentDetailTarget.created_at)}</strong>
+                <small>{studentDetailTarget.created_by_username || "Sin responsable"}</small>
+              </article>
+              <article>
+                <span>Actualizado</span>
+                <strong>{formatDate(studentDetailTarget.updated_at)}</strong>
+                <small>{studentDetailTarget.updated_by_username || "Sin responsable"}</small>
+              </article>
+            </div>
+            <pre className="modal-details">{studentDetailTarget.qr_uid || "Sin QR institucional registrado"}</pre>
+            <div className="button-strip">
+              {studentDetailTarget.qr_uid ? (
+                <button type="button" className="ghost-button" onClick={() => window.open(studentDetailTarget.qr_uid, "_blank", "noopener,noreferrer")}>
+                  Abrir QR
+                </button>
+              ) : null}
+              <button type="button" onClick={() => setStudentDetailTarget(null)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {userDeleteTarget ? (

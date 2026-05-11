@@ -375,6 +375,21 @@ export default function Movimientos() {
 
       {movementView === "estudiantes" ? (
       <>
+      <article className="info-card vehicle-policy-card" aria-label="Reglas operativas para motos">
+        <div>
+          <p className="eyebrow">Regla operativa</p>
+          <h3>Validación de moto antes del movimiento</h3>
+          <p>
+            Cada estudiante puede tener máximo dos motos registradas. Si llega con una tercera o una placa no registrada, el ingreso se permite únicamente como novedad y no modifica el perfil del estudiante.
+          </p>
+        </div>
+        <div className="vehicle-policy-steps">
+          <span>1. Elegir moto principal o secundaria</span>
+          <span>2. Si es otra moto, registrar placa observada</span>
+          <span>3. Confirmar tarjeta de propiedad o RUNT</span>
+        </div>
+      </article>
+
       {canRegister && (
         <div className="cards-grid cards-grid--wide-main movement-grid">
           <article className="info-card movement-register-card">
@@ -389,7 +404,7 @@ export default function Movimientos() {
               <div className="movement-mode-badge">Modo {role}</div>
             </div>
 
-            <form className="inline-form" onSubmit={handleSubmit}>
+            <form className="inline-form movement-access-form" onSubmit={handleSubmit}>
               <select value={registerMode} onChange={(event) => setRegisterMode(event.target.value)}>
                 <option value="qr">Registrar por QR</option>
                 <option value="documento">Registrar por cédula</option>
@@ -404,7 +419,7 @@ export default function Movimientos() {
                   required
                 />
               ) : registerMode === "documento" ? (
-                <div className="stack-form">
+                <div className="stack-form movement-access-field">
                   <input
                     type="text"
                     placeholder={"Cédula de 8 a 10 dígitos"}
@@ -430,7 +445,7 @@ export default function Movimientos() {
                   {documentLookupError ? <div className="form-error">{documentLookupError}</div> : null}
                 </div>
               ) : (
-                <div className="stack-form">
+                <div className="stack-form movement-access-field">
                   <input
                     type="text"
                     placeholder="Placa ABC12D"
@@ -654,6 +669,7 @@ export default function Movimientos() {
                 />
                 <span className="movement-choice-title">Otra moto no registrada</span>
                 <span>{"Se registrará con novedad y validación manual."}</span>
+                <span>{"No se agregará automáticamente al perfil del estudiante."}</span>
               </label>
               ) : null}
               {currentInsidePlate ? (
@@ -688,6 +704,10 @@ export default function Movimientos() {
               </div>
             ) : null}
             {documentVehicleChoice === "OTRA" && !isDocumentExitFlow ? (
+              <>
+              <div className="form-note vehicle-exception-note">
+                Esta excepción exige placa observada, motivo de novedad y confirmación de tarjeta de propiedad o consulta RUNT. El responsable queda asociado al movimiento.
+              </div>
               <div className="form-grid-2 movement-modal-form">
                 <label>
                   Placa observada
@@ -753,6 +773,7 @@ export default function Movimientos() {
                   <span>{"Confirmo que el estudiante presentó tarjeta de propiedad o soporte en RUNT"}</span>
                 </label>
               </div>
+              </>
             ) : null}
             <div className="button-strip">
               <button type="button" className="ghost-button" onClick={() => setDocumentModalOpen(false)}>
