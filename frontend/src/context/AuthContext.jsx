@@ -6,6 +6,12 @@ const TOKEN_KEY = "access_token";
 const USER_KEY = "auth_user";
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "scroll", "touchstart"];
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+function buildApiUrl(url) {
+  if (typeof url !== "string" || !url.startsWith("/")) return url;
+  return API_BASE_URL ? `${API_BASE_URL}${url}` : `/api${url}`;
+}
 
 function safeStorageGet(storage, key) {
   try {
@@ -42,7 +48,7 @@ function clearLegacyLocalStorage() {
 }
 
 async function apiRequest(url, options = {}, token) {
-  const requestUrl = typeof url === "string" && url.startsWith("/") ? `/api${url}` : url;
+  const requestUrl = buildApiUrl(url);
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),

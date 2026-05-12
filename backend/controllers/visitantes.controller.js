@@ -1,6 +1,7 @@
 ﻿const pool = require("../config/database");
 const visitantesModel = require("../models/visitantes.model");
 const movimientosVisitantesModel = require("../models/movimientos-visitantes.model");
+const campusCapacityModel = require("../models/campus-capacity.model");
 
 const DOCUMENTO_REGEX = /^[A-Z0-9-]{5,20}$/;
 const CELULAR_REGEX = /^\d{10}$/;
@@ -127,13 +128,27 @@ async function registrarMovimientoVisitante(req, res, next) {
       return res.status(404).json({ error: "Visitante no encontrado" });
     }
 
+    const vehiculoPlaca = tipo === "SALIDA"
+      ? (lastMovement?.vehiculo_placa || visitante.placa || payload.placa || null)
+      : (payload.placa || visitante.placa || null);
+
+    if (tipo === "ENTRADA" && vehiculoPlaca) {
+      const capacity = await campusCapacityModel.getCapacityStatus(client);
+      if (capacity.isFull) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({
+          error: "El cupo de motos del campus está completo. Registra una salida antes de permitir un nuevo ingreso.",
+          code: "MOTO_CAPACITY_FULL",
+          capacity,
+        });
+      }
+    }
+
     const movimiento = await movimientosVisitantesModel.createMovimientoVisitante(client, visitante.id, tipo, {
       motivoVisita: tipo === "ENTRADA" ? payload.motivo_visita : null,
       personaVisitada: tipo === "ENTRADA" ? payload.persona_visitada : null,
       observaciones: payload.observaciones || null,
-      vehiculoPlaca: tipo === "SALIDA"
-        ? (lastMovement?.vehiculo_placa || visitante.placa || payload.placa || null)
-        : (payload.placa || visitante.placa || null),
+      vehiculoPlaca,
       actorUserId: req.user?.id || null,
     });
 

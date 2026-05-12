@@ -68,6 +68,10 @@ async function sendMail({ to, cc, subject, text, html }) {
     subject,
     text,
     html,
+    textEncoding: "base64",
+    headers: {
+      "Content-Language": "es-CO",
+    },
   });
 }
 

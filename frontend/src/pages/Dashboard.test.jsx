@@ -48,6 +48,18 @@ describe("Dashboard", () => {
           ],
         });
       }
+      if (path === "/movimientos/capacidad-motos") {
+        return Promise.resolve({
+          capacity: {
+            total: 1,
+            limit: 125,
+            warningThreshold: 115,
+            remaining: 124,
+            isWarning: false,
+            isFull: false,
+          },
+        });
+      }
       if (path === "/admin/usuarios") return Promise.resolve({ count: 4, usuarios: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }] });
       return Promise.reject(new Error(`Ruta no mockeada: ${path}`));
     });
@@ -80,6 +92,18 @@ describe("Dashboard", () => {
       if (path === "/estudiantes") return Promise.resolve({ count: 0, estudiantes: [] });
       if (path === "/movimientos/dentro-campus") return Promise.resolve({ count: 0, estudiantes: [] });
       if (path === "/movimientos") return Promise.resolve({ count: 0, movimientos: [] });
+      if (path === "/movimientos/capacidad-motos") {
+        return Promise.resolve({
+          capacity: {
+            total: 0,
+            limit: 125,
+            warningThreshold: 115,
+            remaining: 125,
+            isWarning: false,
+            isFull: false,
+          },
+        });
+      }
       return Promise.reject(new Error(`Ruta no mockeada: ${path}`));
     });
 

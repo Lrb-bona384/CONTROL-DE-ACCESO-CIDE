@@ -4,11 +4,21 @@ const crypto = require("node:crypto");
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const UPLOAD_ROOT = path.resolve(__dirname, "../public/uploads/solicitudes");
+const SUPABASE_STORAGE_SCHEME = "supabase://";
 const ALLOWED_MIME_TYPES = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "application/pdf": ".pdf",
 };
+
+function getSupabaseStorageConfig() {
+  const url = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "solicitudes";
+
+  if (!url || !serviceKey) return null;
+  return { url, serviceKey, bucket };
+}
 
 function sanitizeBaseName(value) {
   return String(value || "adjunto")
@@ -48,16 +58,44 @@ function parseAttachmentPayload(filePayload, label) {
   return {
     buffer,
     extension: ALLOWED_MIME_TYPES[mimeType],
+    mimeType,
     baseName: sanitizeBaseName(path.parse(fileName || label).name),
   };
 }
 
 async function storeAttachment(filePayload, { label, prefix }) {
   const parsed = parseAttachmentPayload(filePayload, label);
-  await fs.mkdir(UPLOAD_ROOT, { recursive: true });
-
   const uniquePart = `${Date.now()}-${crypto.randomUUID()}`;
   const fileName = `${sanitizeBaseName(prefix)}-${uniquePart}${parsed.extension}`;
+  const supabaseConfig = getSupabaseStorageConfig();
+
+  if (supabaseConfig) {
+    const objectPath = `solicitudes/${fileName}`;
+    const uploadUrl = `${supabaseConfig.url}/storage/v1/object/${supabaseConfig.bucket}/${objectPath}`;
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${supabaseConfig.serviceKey}`,
+        apikey: supabaseConfig.serviceKey,
+        "Content-Type": parsed.mimeType,
+        "x-upsert": "false",
+      },
+      body: parsed.buffer,
+    });
+
+    if (!response.ok) {
+      const message = await response.text().catch(() => "");
+      throw new Error(`No fue posible guardar ${label} en Supabase Storage. ${message}`.trim());
+    }
+
+    return {
+      absolutePath: `${SUPABASE_STORAGE_SCHEME}${supabaseConfig.bucket}/${objectPath}`,
+      publicUrl: `${supabaseConfig.url}/storage/v1/object/public/${supabaseConfig.bucket}/${objectPath}`,
+    };
+  }
+
+  await fs.mkdir(UPLOAD_ROOT, { recursive: true });
+
   const absolutePath = path.join(UPLOAD_ROOT, fileName);
 
   await fs.writeFile(absolutePath, parsed.buffer);
@@ -73,6 +111,26 @@ async function removeStoredFiles(paths = []) {
     paths.map(async (filePath) => {
       if (!filePath) return;
       try {
+        if (filePath.startsWith(SUPABASE_STORAGE_SCHEME)) {
+          const supabaseConfig = getSupabaseStorageConfig();
+          if (!supabaseConfig) return;
+
+          const storedPath = filePath.slice(SUPABASE_STORAGE_SCHEME.length);
+          const prefix = `${supabaseConfig.bucket}/`;
+          const objectPath = storedPath.startsWith(prefix) ? storedPath.slice(prefix.length) : storedPath;
+
+          await fetch(`${supabaseConfig.url}/storage/v1/object/${supabaseConfig.bucket}/remove`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${supabaseConfig.serviceKey}`,
+              apikey: supabaseConfig.serviceKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ prefixes: [objectPath] }),
+          });
+          return;
+        }
+
         await fs.unlink(filePath);
       } catch (_) {
         // no-op

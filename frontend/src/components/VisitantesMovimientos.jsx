@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { dispatchCapacityRefresh } from "./ParkingCapacityAlert.jsx";
 
 const DOCUMENTO_REGEX = /^[A-Z0-9-]{5,20}$/;
 const CELULAR_REGEX = /^\d{10}$/;
@@ -143,6 +144,7 @@ export default function VisitantesMovimientos() {
         observaciones: "",
       });
       await refreshData();
+      dispatchCapacityRefresh();
     } catch (err) {
       setError(err.message);
     }
@@ -309,8 +311,8 @@ export default function VisitantesMovimientos() {
           {insideCampus.length === 0 ? (
             <div className="empty-state">No hay visitantes dentro del campus en este momento.</div>
           ) : (
-            <div className="table-wrap table-wrap--scrollable">
-              <table className="data-table">
+            <div className="table-wrap table-wrap--scrollable movement-table-wrap">
+              <table className="data-table movement-table">
                 <thead>
                   <tr>
                     <th>Visitante</th>
@@ -354,8 +356,8 @@ export default function VisitantesMovimientos() {
           {registeredVisitors.length === 0 ? (
             <div className="empty-state">A?n no hay visitantes registrados en el sistema.</div>
           ) : (
-            <div className="table-wrap table-wrap--scrollable">
-              <table className="data-table">
+            <div className="table-wrap table-wrap--scrollable movement-table-wrap">
+              <table className="data-table movement-table movement-table--visitors">
                 <thead>
                   <tr>
                     <th>Documento</th>
@@ -394,8 +396,8 @@ export default function VisitantesMovimientos() {
           {allMovements.length === 0 ? (
             <div className="empty-state">Aún no hay movimientos de visitantes registrados.</div>
           ) : (
-            <div className="table-wrap table-wrap--scrollable">
-              <table className="data-table">
+            <div className="table-wrap table-wrap--scrollable movement-table-wrap">
+              <table className="data-table movement-table movement-table--history">
                 <thead>
                   <tr>
                     <th>Fecha</th>

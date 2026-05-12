@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { CAPACITY_UPDATED_EVENT } from "../components/ParkingCapacityAlert.jsx";
 
 function formatDate(value) {
   if (!value) return "Sin datos";
@@ -84,8 +85,17 @@ export default function Dashboard() {
     movements: 0,
     users: 0,
   });
+  const [capacity, setCapacity] = useState(null);
   const [latestMovement, setLatestMovement] = useState(null);
   const [latestInside, setLatestInside] = useState(null);
+
+  const capacityTone = useMemo(() => {
+    if (!capacity) return "green";
+    if (capacity.isFull || capacity.remaining <= 0) return "full";
+    if (capacity.remaining <= 5) return "critical";
+    if (capacity.isWarning) return "warning";
+    return "green";
+  }, [capacity]);
 
   const summary = useMemo(() => buildSummary(role, counts), [counts, role]);
   const roleSnapshot = useMemo(() => getRoleSnapshot(role), [role]);
@@ -162,13 +172,14 @@ export default function Dashboard() {
           apiRequest("/estudiantes"),
           apiRequest("/movimientos/dentro-campus"),
           apiRequest("/movimientos"),
+          apiRequest("/movimientos/capacidad-motos"),
         ];
 
         if (role === "ADMIN") {
           requests.push(apiRequest("/admin/usuarios"));
         }
 
-        const [profileData, studentsData, insideData, movementsData, usersData] = await Promise.all(requests);
+        const [profileData, studentsData, insideData, movementsData, capacityData, usersData] = await Promise.all(requests);
 
         if (cancelled) return;
 
@@ -181,6 +192,7 @@ export default function Dashboard() {
         });
         setLatestMovement((movementsData.movimientos || [])[0] || null);
         setLatestInside((insideData.estudiantes || [])[0] || null);
+        setCapacity(capacityData.capacity || null);
       } catch (err) {
         if (!cancelled) {
           setError(err.message);
@@ -197,10 +209,16 @@ export default function Dashboard() {
     const interval = window.setInterval(() => {
       loadDashboard({ silent: true }).catch(() => null);
     }, 10000);
+    const refreshDashboard = () => {
+      loadDashboard({ silent: true }).catch(() => null);
+    };
+
+    window.addEventListener(CAPACITY_UPDATED_EVENT, refreshDashboard);
 
     return () => {
       cancelled = true;
       window.clearInterval(interval);
+      window.removeEventListener(CAPACITY_UPDATED_EVENT, refreshDashboard);
     };
   }, [apiRequest, role]);
 
@@ -224,11 +242,14 @@ export default function Dashboard() {
             <span>{profile?.id ? `ID ${profile.id}` : "Sin ID"}</span>
           </div>
         </div>
-        <div className="welcome-panel__score">
-          <div className="welcome-ring">
-            <span>{loadingData ? "..." : `${counts.inside}`}</span>
+        <div className={`welcome-panel__score welcome-panel__score--${capacityTone}`}>
+          <div
+            className={`welcome-ring welcome-ring--${capacityTone}`}
+            style={capacity ? { "--capacity-fill": `${Math.min((capacity.total / capacity.limit) * 100, 100)}%` } : undefined}
+          >
+            <span>{loadingData ? "..." : `${capacity?.total ?? counts.inside}`}</span>
           </div>
-          <p>Presencia activa</p>
+          <p>{capacity ? `Motos dentro (${capacity.remaining} cupos)` : "Presencia activa"}</p>
         </div>
       </section>
 
@@ -247,7 +268,10 @@ export default function Dashboard() {
 
       <div className="stats-grid">
         {metricCards.map((card) => (
-          <article key={card.title} className={`stat-card stat-card--${card.tone}`}>
+          <article
+            key={card.title}
+            className={`stat-card stat-card--${card.title === "Dentro del campus" ? capacityTone : card.tone}`}
+          >
             <div className="stat-card__icon" aria-hidden="true"></div>
             <h3>{card.title}</h3>
             <strong>{card.value}</strong>

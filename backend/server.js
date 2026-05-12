@@ -16,6 +16,33 @@ const visitantesRoutes = require("./routes/visitantes.routes");
 const { startSolicitudesExpirationRunner } = require("./utils/solicitudes-expiration-runner");
 
 const PORT = Number(process.env.PORT || 3000);
+const corsOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (corsOrigins.length === 0) return true;
+  return corsOrigins.includes("*") || corsOrigins.includes(origin);
+}
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (isAllowedOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(isAllowedOrigin(origin) ? 204 : 403);
+  }
+
+  return next();
+});
 
 app.use(express.json({ limit: "20mb" }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -36,7 +63,14 @@ app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.get("/health", async (_req, res) => {
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "OK",
+    service: "siuc-backend",
+  });
+});
+
+app.get("/health/db", async (_req, res) => {
   try {
     const result = await pool.query("SELECT NOW() as now");
     res.json({
@@ -44,7 +78,7 @@ app.get("/health", async (_req, res) => {
       database_time: result.rows[0].now,
     });
   } catch (error) {
-    console.error("[health] error", error.message);
+    console.error("[health/db] error", error.message);
     res.status(500).json({ status: "DB ERROR" });
   }
 });
