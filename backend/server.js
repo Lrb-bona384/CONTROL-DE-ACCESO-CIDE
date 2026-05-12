@@ -63,7 +63,14 @@ app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.get("/health", async (_req, res) => {
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "OK",
+    service: "siuc-backend",
+  });
+});
+
+app.get("/health/db", async (_req, res) => {
   try {
     const result = await pool.query("SELECT NOW() as now");
     res.json({
@@ -71,7 +78,7 @@ app.get("/health", async (_req, res) => {
       database_time: result.rows[0].now,
     });
   } catch (error) {
-    console.error("[health] error", error.message);
+    console.error("[health/db] error", error.message);
     res.status(500).json({ status: "DB ERROR" });
   }
 });
