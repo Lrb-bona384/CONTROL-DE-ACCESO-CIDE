@@ -403,6 +403,16 @@ async function enviarVistaPreviaCorreosSolicitud(req, res, next) {
       return res.status(400).json({ error: result.reason || "No fue posible enviar la vista previa." });
     }
 
+    if ((result?.failed || 0) > 0 || (result?.skipped || 0) > 0) {
+      return res.status(502).json({
+        error: "No fue posible enviar todos los correos. Revisa la configuración SMTP en Render.",
+        to: result.to,
+        sent: result.sent || 0,
+        failed: result.failed || 0,
+        skipped: result.skipped || 0,
+      });
+    }
+
     return res.json({
       message: "Correos de vista previa enviados",
       to: result.to,

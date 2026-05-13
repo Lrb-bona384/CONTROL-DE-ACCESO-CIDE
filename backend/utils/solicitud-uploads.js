@@ -85,7 +85,10 @@ async function storeAttachment(filePayload, { label, prefix }) {
 
     if (!response.ok) {
       const message = await response.text().catch(() => "");
-      throw new Error(`No fue posible guardar ${label} en Supabase Storage. ${message}`.trim());
+      const error = new Error(`No fue posible guardar ${label} en Supabase Storage. ${message}`.trim());
+      error.statusCode = 502;
+      error.expose = true;
+      throw error;
     }
 
     return {
