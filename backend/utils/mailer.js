@@ -1,7 +1,9 @@
 const nodemailer = require("nodemailer");
 const dns = require("node:dns");
+const dnsPromises = require("node:dns").promises;
 
 let transporterPromise = null;
+let smtpHostPromise = null;
 
 if (typeof dns.setDefaultResultOrder === "function") {
   dns.setDefaultResultOrder("ipv4first");
@@ -10,6 +12,23 @@ if (typeof dns.setDefaultResultOrder === "function") {
 function getSmtpTimeout() {
   const timeout = Number(process.env.SMTP_TIMEOUT_MS || 12000);
   return Number.isFinite(timeout) && timeout > 0 ? timeout : 12000;
+}
+
+async function resolveSmtpHost(host) {
+  const forceIpv4 = String(process.env.SMTP_FORCE_IPV4 || "true").toLowerCase() !== "false";
+  if (!forceIpv4) return host;
+
+  if (!smtpHostPromise) {
+    smtpHostPromise = dnsPromises
+      .resolve4(host)
+      .then((addresses) => addresses[0] || host)
+      .catch((error) => {
+        console.warn(`[mail] no fue posible resolver IPv4 para ${host}: ${error.message}`);
+        return host;
+      });
+  }
+
+  return smtpHostPromise;
 }
 
 function parseEmailList(value) {
@@ -49,13 +68,16 @@ async function getTransporter() {
   if (!config) return null;
 
   if (!transporterPromise) {
-    transporterPromise = Promise.resolve(
+    transporterPromise = resolveSmtpHost(config.host).then((resolvedHost) =>
       nodemailer.createTransport({
-        host: config.host,
+        host: resolvedHost,
         port: config.port,
         secure: config.secure,
         auth: config.auth,
         family: 4,
+        tls: {
+          servername: config.host,
+        },
         connectionTimeout: config.timeout,
         greetingTimeout: config.timeout,
         socketTimeout: config.timeout,
