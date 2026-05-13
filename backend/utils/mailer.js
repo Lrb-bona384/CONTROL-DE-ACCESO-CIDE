@@ -38,6 +38,38 @@ function parseEmailList(value) {
     .filter(Boolean);
 }
 
+function parseEmailAddress(value) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(.*)<([^>]+)>$/);
+
+  if (!match) {
+    return { email: raw, name: "" };
+  }
+
+  return {
+    name: match[1].trim().replace(/^["']|["']$/g, ""),
+    email: match[2].trim(),
+  };
+}
+
+function getApiMailerConfig() {
+  const provider = String(process.env.MAIL_PROVIDER || "").trim().toLowerCase();
+  const from = process.env.MAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER;
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const cc = parseEmailList(process.env.MAIL_CC || process.env.SMTP_CC);
+
+  if (provider === "brevo" && brevoApiKey && from) {
+    return { provider, apiKey: brevoApiKey, from, cc };
+  }
+
+  if (provider === "resend" && resendApiKey && from) {
+    return { provider, apiKey: resendApiKey, from, cc };
+  }
+
+  return null;
+}
+
 function getSmtpConfig() {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
@@ -88,7 +120,72 @@ async function getTransporter() {
   return transporterPromise;
 }
 
+async function sendMailWithBrevo(config, payload) {
+  const sender = parseEmailAddress(config.from);
+  const combinedCc = [...new Set([...(config.cc || []), ...parseEmailList(payload.cc)])];
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "api-key": config.apiKey,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: {
+        name: sender.name || sender.email,
+        email: sender.email,
+      },
+      to: parseEmailList(payload.to).map((email) => ({ email })),
+      cc: combinedCc.map((email) => ({ email })),
+      subject: payload.subject,
+      htmlContent: payload.html,
+      textContent: payload.text,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Brevo ${response.status}: ${errorBody}`);
+  }
+
+  return response.json();
+}
+
+async function sendMailWithResend(config, payload) {
+  const combinedCc = [...new Set([...(config.cc || []), ...parseEmailList(payload.cc)])];
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${config.apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: config.from,
+      to: parseEmailList(payload.to),
+      cc: combinedCc,
+      subject: payload.subject,
+      html: payload.html,
+      text: payload.text,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Resend ${response.status}: ${errorBody}`);
+  }
+
+  return response.json();
+}
+
 async function sendMail({ to, cc, subject, text, html }) {
+  const apiConfig = getApiMailerConfig();
+  if (apiConfig?.provider === "brevo") {
+    return sendMailWithBrevo(apiConfig, { to, cc, subject, text, html });
+  }
+  if (apiConfig?.provider === "resend") {
+    return sendMailWithResend(apiConfig, { to, cc, subject, text, html });
+  }
+
   const config = getSmtpConfig();
   const transporter = await getTransporter();
 
@@ -123,6 +220,7 @@ async function sendMailSafe(payload) {
 }
 
 module.exports = {
+  getApiMailerConfig,
   getSmtpConfig,
   parseEmailList,
   sendMail,
