@@ -143,6 +143,14 @@ async function notifyExpiredSolicitudes(expiredRows = []) {
   await Promise.all((expiredRows || []).map((row) => notifySolicitudExpirada(row)));
 }
 
+function notifyInBackground(task, context) {
+  Promise.resolve()
+    .then(task)
+    .catch((error) => {
+      console.error(`[mail] error diferido en ${context}`, error.message);
+    });
+}
+
 async function expirePendingAndNotify(db = pool) {
   const expired = await solicitudesModel.expirePending(db);
   await notifyExpiredSolicitudes(expired.rows || []);
@@ -185,8 +193,8 @@ async function crearSolicitudInscripcion(req, res, next) {
     const solicitud = await solicitudesModel.findById(client, created.rows[0].id, { forUpdate: false });
 
     await client.query("COMMIT");
-    await notifyExpiredSolicitudes(expiredRows);
-    await notifySolicitudCreada(solicitud.rows[0]);
+    notifyInBackground(() => notifyExpiredSolicitudes(expiredRows), "solicitudes expiradas");
+    notifyInBackground(() => notifySolicitudCreada(solicitud.rows[0]), "solicitud creada");
 
     return res.status(201).json({
       message: "Solicitud de inscripción registrada",
@@ -275,9 +283,9 @@ async function aprobarSolicitudInscripcion(req, res, next) {
         notasRevision,
         estado: solicitudesModel.SOLICITUD_ESTADOS.EXPIRADA,
       });
-      const expirada = await solicitudesModel.findById(client, id);
-      await client.query("COMMIT");
-      await notifyExpiredSolicitudes([...expiredRows, ...expirada.rows]);
+    const expirada = await solicitudesModel.findById(client, id);
+    await client.query("COMMIT");
+      notifyInBackground(() => notifyExpiredSolicitudes([...expiredRows, ...expirada.rows]), "solicitud expirada");
       return res.status(409).json({ error: "La solicitud expiró y ya no puede aprobarse" });
     }
 
@@ -313,8 +321,8 @@ async function aprobarSolicitudInscripcion(req, res, next) {
 
     const updatedSolicitud = await solicitudesModel.findById(client, id);
     await client.query("COMMIT");
-    await notifyExpiredSolicitudes(expiredRows);
-    await notifySolicitudAprobada(updatedSolicitud.rows[0]);
+    notifyInBackground(() => notifyExpiredSolicitudes(expiredRows), "solicitudes expiradas");
+    notifyInBackground(() => notifySolicitudAprobada(updatedSolicitud.rows[0]), "solicitud aprobada");
 
     return res.status(200).json({
       message: "Solicitud aprobada y estudiante creado",
@@ -375,8 +383,8 @@ async function rechazarSolicitudInscripcion(req, res, next) {
 
     const updatedSolicitud = await solicitudesModel.findById(client, id);
     await client.query("COMMIT");
-    await notifyExpiredSolicitudes(expiredRows);
-    await notifySolicitudRechazada(updatedSolicitud.rows[0]);
+    notifyInBackground(() => notifyExpiredSolicitudes(expiredRows), "solicitudes expiradas");
+    notifyInBackground(() => notifySolicitudRechazada(updatedSolicitud.rows[0]), "solicitud rechazada");
 
     return res.status(200).json({
       message: "Solicitud rechazada",
