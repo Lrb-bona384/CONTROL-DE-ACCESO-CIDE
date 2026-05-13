@@ -55,6 +55,7 @@ async function getTransporter() {
         port: config.port,
         secure: config.secure,
         auth: config.auth,
+        family: 4,
         connectionTimeout: config.timeout,
         greetingTimeout: config.timeout,
         socketTimeout: config.timeout,
