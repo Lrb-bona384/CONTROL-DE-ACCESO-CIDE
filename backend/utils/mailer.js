@@ -2,6 +2,11 @@
 
 let transporterPromise = null;
 
+function getSmtpTimeout() {
+  const timeout = Number(process.env.SMTP_TIMEOUT_MS || 12000);
+  return Number.isFinite(timeout) && timeout > 0 ? timeout : 12000;
+}
+
 function parseEmailList(value) {
   return String(value || "")
     .split(",")
@@ -17,6 +22,7 @@ function getSmtpConfig() {
   const from = process.env.SMTP_FROM || user;
   const secure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
   const cc = parseEmailList(process.env.SMTP_CC);
+  const timeout = getSmtpTimeout();
 
   if (!host || !port || !from) {
     return null;
@@ -28,6 +34,7 @@ function getSmtpConfig() {
     secure,
     from,
     cc,
+    timeout,
     auth: user && pass ? { user, pass } : undefined,
   };
 }
@@ -43,6 +50,9 @@ async function getTransporter() {
         port: config.port,
         secure: config.secure,
         auth: config.auth,
+        connectionTimeout: config.timeout,
+        greetingTimeout: config.timeout,
+        socketTimeout: config.timeout,
       })
     );
   }
