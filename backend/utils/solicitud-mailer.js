@@ -205,10 +205,7 @@ async function sendSolicitudPreviewMails(to) {
     createExpiredMail({ ...sample, estado: "EXPIRADA" }),
   ].map((payload) => ({ ...payload, to: previewTarget }));
 
-  const results = [];
-  for (const payload of payloads) {
-    results.push(await sendMailSafe(payload));
-  }
+  const results = await Promise.all(payloads.map((payload) => sendMailSafe(payload)));
 
   const skipped = results.filter((result) => result?.skipped).length;
   const failed = results.filter((result) => result?.error).length;
