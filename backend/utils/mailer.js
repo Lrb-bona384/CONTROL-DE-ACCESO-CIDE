@@ -1,6 +1,11 @@
-﻿const nodemailer = require("nodemailer");
+const nodemailer = require("nodemailer");
+const dns = require("node:dns");
 
 let transporterPromise = null;
+
+if (typeof dns.setDefaultResultOrder === "function") {
+  dns.setDefaultResultOrder("ipv4first");
+}
 
 function getSmtpTimeout() {
   const timeout = Number(process.env.SMTP_TIMEOUT_MS || 12000);
