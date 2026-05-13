@@ -406,9 +406,18 @@ export default function Admin() {
         body: JSON.stringify({ to: previewEmail.trim() }),
       });
 
-      setStatus(`${data.sent || 4} correos de vista previa enviados a ${data.to}.`);
+      const sent = data.sent ?? 0;
+      const failed = data.failed ?? 0;
+      const skipped = data.skipped ?? 0;
+      const extra = failed || skipped ? ` Fallidos: ${failed}. Omitidos: ${skipped}.` : "";
+      setStatus(`${sent} correos de vista previa enviados a ${data.to}.${extra}`);
     } catch (err) {
-      setError(err.message);
+      const data = err.data || {};
+      const details =
+        data.failed !== undefined || data.skipped !== undefined || data.sent !== undefined
+          ? ` Enviados: ${data.sent ?? 0}. Fallidos: ${data.failed ?? 0}. Omitidos: ${data.skipped ?? 0}.`
+          : "";
+      setError(`${err.message}${details}`);
     } finally {
       setLoading(false);
     }
