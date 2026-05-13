@@ -11,6 +11,12 @@ function errorHandler(err, req, res, _next) {
     return;
   }
 
+  if (err && err.expose) {
+    return res.status(err.statusCode || 400).json({
+      error: err.message || "No fue posible completar la operación.",
+    });
+  }
+
   return res.status(500).json({
     error: "Error interno del servidor",
   });

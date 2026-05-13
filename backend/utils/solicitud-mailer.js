@@ -210,7 +210,11 @@ async function sendSolicitudPreviewMails(to) {
     results.push(await sendMailSafe(payload));
   }
 
-  return { to: previewTarget, sent: results.length, results };
+  const skipped = results.filter((result) => result?.skipped).length;
+  const failed = results.filter((result) => result?.error).length;
+  const sent = results.length - skipped - failed;
+
+  return { to: previewTarget, sent, skipped, failed, results };
 }
 
 async function notifySolicitudCreada(solicitud) {
